@@ -38,7 +38,7 @@ sub _build__input {
 #            params
 #            C_PAREN
 #
-# params: param COMMA params
+# params: param (COMMA|NEWLINE) params
 #       | param
 #       | /* NUL */
 sub signature {
@@ -75,6 +75,7 @@ sub signature {
   }
 
   $self->assert_token(')');
+  $sig->{params} = $params;
  
   return $sig;
 }
@@ -116,11 +117,11 @@ sub param {
 
   return if (!$consumed && $token->{type} ne 'var');
 
-  $param->{var} = $self->assert_token('var');
+  $param->{var} = $self->assert_token('var')->{literal};
   $token = $self->token;
 
   if ($token->{type} eq '?') {
-    $param->{optional} = 0;
+    $param->{optional} = 1;
     $self->consume_token;
     $token = $self->token;
   } elsif ($token->{type} eq '!') {
