@@ -6,7 +6,7 @@ use warnings;
 name 'SlimSignature';
 all_from 'lib/SlimSignature.pm';
 
-requires 'Text::Balanced' => '2.0.0';
+requires 'Text::Balanced' => 2.000000;
 
 test_requires 'Test::More';
 test_requires 'Test::Differences';

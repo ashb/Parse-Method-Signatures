@@ -6,7 +6,10 @@ use Text::Balanced qw(
   extract_variable
   extract_quotelike
 );
+
 use Carp qw/croak/;
+
+our $VERSION = 1.000000;
 
 has 'tokens' => (
   is => 'ro',
@@ -318,4 +321,62 @@ sub next_token {
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+SlimSignature - Perl6 like method signature parser
+
+=head1 DESCRIPTION
+
+Inspired by L<Perl6::Signature> but streamlined to just support the subset 
+deemed useful for L<TryCatch> and L<MooseX::Method::Signatures>.
+
+=head1 TODO
+
+=over
+
+=item * Rename the damn thing
+
+=item * Work out return interface
+
+=back
+
+=head1 METHODS
+
+There are only two public methods to this module, both of which should be 
+called as class methods.
+
+=head2 signature
+
+ my $sig = SlimSignature->signature( '(Str $foo)' )
+
+Attempts to parse the (bracketed) method signature. Returns a value or dies on
+error.
+
+=head2 param
+
+  my $param = SlimSignature->param( 'Str $foo where { length($_) < 10 }') 
+
+Attempts to parse the specification for a single parameter. Returns value or
+dies on error.
+
+=head1 CAVEATS
+
+Like Perl6::Signature, the parsing of certain constructs is currently only a
+'best effort' - specifically default values and where code blocks might not
+successfully for certain complex cases. Patches/Failing tests welcome.
+
+Additionally, default value specifications are not evaluated which means that
+no such lexical or similar errors will not be produced by this module. 
+Constant folding will also not be performed.
+
+=head1 AUTHOR
+
+Ash Berlin C<< <ash@cpan.org> >>
+
+=head1 LICENSE
+
+Licensed under the same terms as Perl itself.
 
