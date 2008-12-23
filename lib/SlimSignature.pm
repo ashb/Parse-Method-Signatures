@@ -6,6 +6,7 @@ use Text::Balanced qw(
   extract_variable
   extract_quotelike
 );
+use Carp qw/croak/;
 
 has 'tokens' => (
   is => 'ro',
@@ -47,41 +48,35 @@ sub signature {
 
   $self->assert_token('(');
 
-  my $invocant = $self->invocant;
+  my $sig = {};
   my $params = [];
 
   my $param = $self->param;
+
+  if ($param && $self->token->{type} eq ':') {
+    # That param was actualy the invocant
+    $sig->{invocant} = $param;
+    $self->consume_token;
+    $param = $self->param;
+  }
+
   push @$params, $param
     if $param;
 
-  while ($self->token->{type} eq ',') {
+  # Params can be sperarated by , or \n
+  while ($self->token->{type} eq ',' ||
+         $self->token->{type} eq "\n") {
     $self->consume_token;
 
     $param = $self->param;
     die "parameter expected"
       if !$param;
+    push @$params, $param;
   }
 
   $self->assert_token(')');
-  
-}
-
-# invocant: var COLON
-#         | /* NUL */
-# 
-sub invocant {
-  my ($self) = @_;
-
-  if ($self->token->{type} eq 'VAR' &&
-      $self->token(1)->{type} eq ':') {
-    my $invocant = {
-      type => 'invocant',
-      var => $self->consume_token->{literal}
-    };
-    $self->consume_token;
-    return $invocant;
-  }
-  return undef;
+ 
+  return $sig;
 }
 
 # param: classishTCName?
@@ -100,9 +95,15 @@ sub param {
 
   my $token = $self->token;
   if ($token->{type} eq 'class') {
-    $param->{tc} = $token->{type};
+    $param->{tc} = $token->{literal};
     $self->consume_token;
     $token = $self->token;
+    while ($token->{type} eq '|') {
+      $self->consume_token;
+      $token = $self->token;
+      $param->{tc} .= '|' . $self->assert_token('class')->{literal};
+      $token = $self->token;
+    }
     $consumed = 1;
   }
 
@@ -152,6 +153,7 @@ sub param {
     $token = $self->token;
   }
 
+  #use Data::Dumper; $Data::Dumper::Indent = 1;warn Dumper($param);
   return $param;
 }
 
@@ -166,10 +168,11 @@ sub param {
 sub value_ish {
   my ($self) = @_;
 
+  my $data = $self->_input;
   my $num = $self->_number_like;
   return $num if defined $num;
 
-  my $default = $self->_quote_like;
+  my $default = $self->_quote_like || $self->_variable_like;
   return $default;
 }
 
@@ -199,6 +202,7 @@ sub _number_like {
     substr($$data, 0, length($num), '');
     return $num;
   }
+  return undef;
 }
 
 sub _quote_like {
@@ -211,8 +215,23 @@ sub _quote_like {
   die "$@" if $@; 
   return unless $quote[0];
 
-  my $op = $quote[3];
-  die $op;
+  my $op = $quote[4];
+
+  my %whitelist = map { $_ => 1 } qw(q qq qw qr " ');
+  die "rejected quotelike operator: $op" unless $whitelist{$op};
+
+  substr($$data, 0, length $quote[0], '');
+
+  return $quote[0];
+}
+
+sub _variable_like {
+  my ($self) = @_;
+
+  my $data = $self->_input;
+  my @var = extract_quotelike($$data);
+
+  die "$@" if $@; 
 }
 
 sub assert_token {
@@ -222,7 +241,7 @@ sub assert_token {
     return $self->consume_token;
   }
  
-  die "$type required, found  '" .$self->token->{literal} . "'!\n";
+  Carp::confess "$type required, found  '" .$self->token->{literal} . "'!";
 }
 
 sub token {
@@ -257,14 +276,18 @@ our %LEXTABLE = (
 sub next_token {
   my ($self, $data) = @_;
 
+  if ($$data =~ s/^(\s*[\r\n]\s*)//xs) {
+    return { type => "\n", literal => $1 }
+  }
+
   my $re = qr/^ \s* (?:
-    ([(){},:=|]) |
+    ([(){},:=|!?\n]) |
     (
       [A-Za-z][a-zA-Z0-0_-]+
       (?:::[A-Za-z][a-zA-Z0-0_-]+)*
     ) |
     (\$[_A-Za-z][a-zA-Z0-9_]*)
-  ) \s* /sx;
+  ) \s* /x;
 
   # symbols in $1
   # class-name ish in $2
