@@ -24,6 +24,12 @@ has 'input' => (
   required => 1
 );
 
+has 'offset' => (
+  isa => 'Int',
+  is => 'rw',
+  default => 0,
+);
+
 has '_input' => (
   is => 'ro',
   isa => 'ScalarRef',
@@ -32,7 +38,7 @@ has '_input' => (
 );
 
 sub _build__input {
-    my $var = $_[0]->input;
+    my $var = substr($_[0]->input, $_[0]->offset);
     return \$var;
 }
 
@@ -45,9 +51,9 @@ sub _build__input {
 #       | param
 #       | /* NUL */
 sub signature {
-  my ($self, $data) = @_;
+  my $self = shift;
 
-  $self = $self->new(input => $data);
+  $self = $self->new(@_ == 1 ? (input => $_[0]) : @_);
 
   $self->assert_token('(');
 
@@ -80,7 +86,8 @@ sub signature {
   $self->assert_token(')');
   $sig->{params} = $params;
  
-  return $sig;
+  
+  return wantarray ? ($sig, $self->remaining_input) : $sig;
 }
 
 # param: classishTCName?
@@ -90,9 +97,12 @@ sub signature {
 #        default?
 #        where*
 sub param {
-  my ($self, $data) = @_;
-  $self = $self->new(input => $data)
-    unless blessed($self);
+  my $self = shift;
+  my $class_meth;
+  unless (blessed($self)) {
+    $self = $self->new(@_ == 1 ? (input => $_[0]) : @_);
+    $class_meth = 1;
+  }
 
   my $param = {};
   my $consumed = 0;
@@ -158,7 +168,11 @@ sub param {
   }
 
   #use Data::Dumper; $Data::Dumper::Indent = 1;warn Dumper($param);
-  return $param;
+  if ($class_meth) {
+    return wantarray ? ($param, $self->remaining_input) : $param;
+  } else {
+    return $param;
+  }
 }
 
 # Used by default production.
@@ -281,43 +295,55 @@ sub next_token {
   my ($self, $data) = @_;
 
   if ($$data =~ s/^(\s*[\r\n]\s*)//xs) {
-    return { type => "\n", literal => $1 }
+    return { type => "\n", literal => $1, orig => $1 }
   }
 
-  my $re = qr/^ \s* (?:
+  my $re = qr/^ (\s* (?:
     ([(){},:=|!?\n]) |
     (
       [A-Za-z][a-zA-Z0-0_-]+
       (?:::[A-Za-z][a-zA-Z0-0_-]+)*
     ) |
     (\$[_A-Za-z][a-zA-Z0-9_]*)
-  ) \s* /x;
+  ) \s*) /x;
 
-  # symbols in $1
-  # class-name ish in $2
-  # $var in $3
+  # symbols in $2
+  # class-name ish in $3
+  # $var in $4
 
   unless ( $$data =~ s/$re//) {
     die "Error parsing signature at '" . substr($$data, 0, 10);
   }
 
-  my ($sym, $cls,$var) = ($1,$2,$3);
+  my ($orig, $sym, $cls,$var) = ($1,$2,$3, $4);
 
-  return { type => $sym, literal => $sym }
+  return { type => $sym, literal => $sym, orig => $orig }
     if defined $sym;
 
   if (defined $cls) {
     if ($LEXTABLE{$cls}) {
-      return { type => $LEXTABLE{$cls}, literal => $cls };
+      return { type => $LEXTABLE{$cls}, literal => $cls, orig => $orig };
     }
-    return { type => 'class', literal => $cls };
+    return { type => 'class', literal => $cls, orig => $orig };
   }
 
-  return { type => 'var', literal => $var }
+  return { type => 'var', literal => $var, orig => $orig }
     if $var;
 
 
   die "Shouldn't get here!";
+}
+
+sub remaining_input {
+  my ($self) = @_;
+
+  return ${$self->_input} unless @{$self->tokens};
+
+  my $input = '';
+
+  $input .= $_->{orig} for @{$self->tokens};
+  $input .= ${$self->_input};
+  return $input;
 }
 
 1;
