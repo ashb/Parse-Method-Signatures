@@ -148,18 +148,16 @@ eq_or_diff(
   }, 
 );
 
-SKIP: {
-  eval {
-  local $TODO = 'What the hell is this';
-  eq_or_diff(
-    scalar SlimSignature->signature('(:apan($affe)) # called as $obj->foo(apan => $value)'),
-    {
-    },
-  );
-  };
-  skip('this doesn\'t parse yet', 1) if ($@);
-  
-}
+eq_or_diff(
+  scalar SlimSignature->signature('(:apan($affe)) # called as $obj->foo(apan => $value)'),
+  { params => [
+      { label => 'apan',
+        var => '$affe',
+        named => 1
+      }
+    ]
+  },
+);
 
 eq_or_diff(
   scalar SlimSignature->signature(q#(SomeClass $thing where { $_->can('stuff') }:

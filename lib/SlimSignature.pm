@@ -91,11 +91,14 @@ sub signature {
 }
 
 # param: classishTCName?
-#        COLON?
-#        var
+#        var_name
 #        (OPTIONAL|REQUIRED)
 #        default?
 #        where*
+#
+# var_name : COLON label '(' var ')' # labal is classish, just without :: allowed
+#          | COLON var
+#          | var
 sub param {
   my $self = shift;
   my $class_meth;
@@ -126,11 +129,27 @@ sub param {
     $self->consume_token;
     $token = $self->token;
     $consumed = 1;
+
+    # Probably a label
+    if ($token->{type} eq 'class') {
+      $param->{label} = $self->consume_token->{literal};
+      $token = $self->token;
+
+      die "label required, class or type constraint found"
+        if $param->{label} =~ /[^a-zA-Z0-9_]/;
+
+      $self->assert_token('(');
+    }
   }
 
   return if (!$consumed && $token->{type} ne 'var');
 
   $param->{var} = $self->assert_token('var')->{literal};
+
+  if (defined $param->{label}) {
+    $self->assert_token(')');
+  }
+
   $token = $self->token;
 
   if ($token->{type} eq '?') {

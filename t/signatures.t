@@ -38,11 +38,9 @@ lives_ok { SlimSignature->signature('($self:  $moo)'); }
 lives_ok { SlimSignature->signature('(:     $affe ) # called as $obj->foo(affe => $value)'); }
          'parsed';
 
-{
-local $TODO = 'What the hell is this';
 lives_ok { SlimSignature->signature('(:apan($affe)) # called as $obj->foo(apan => $value)'); }
          'parsed';
-}
+
 lives_ok { SlimSignature->signature(q#(SomeClass $thing where { $_->can('stuff') }:
 Str  $bar  = "apan"
 Int :$baz! = 42 where { $_ % 2 == 0 } where { $_ > 10 })#)}
