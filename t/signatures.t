@@ -65,7 +65,7 @@ sub test_sigs {
     for my $row (@sigs) {
         my ($sig, $msg, $todo) = @{ $row };
         TODO: {
-            todo_skip $todo, 1 if $todo;
+            local $TODO = $todo if $todo;
             $test->($sig, $msg);
         }
     }
