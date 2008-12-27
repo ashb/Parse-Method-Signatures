@@ -40,15 +40,33 @@ Int :$baz! = 42 where { $_ % 2 == 0 } where { $_ > 10 })#,
                                 'complex invocant, defaults and constraints'],
 );
 
-plan tests => scalar @sigs;
+my @invalid = (
+    ['($x?:)',                  'optional invocant', 'TODO'],
+    ['($x?, $y)',               'required positional after optional one', 'TODO'],
+    ['(Int| $x)',               'invalid type alternation'],
+    ['(|Int $x)',               'invalid type alternation'],
+);
 
-for my $row (@sigs) {
-    my ($sig, $msg, $todo) = @{ $row };
-    TODO: {
-        todo_skip $todo, 1 if $todo;
+plan tests => scalar @sigs + scalar @invalid;
 
-        lives_ok {
-            Parse::Method::Signatures->signature($sig);
-        } $msg;
+test_sigs(sub {
+    my ($sig, $msg) = @_;
+    lives_ok { Parse::Method::Signatures->signature($sig) } $msg;
+}, @sigs);
+
+test_sigs(sub {
+    my ($sig, $msg) = @_;
+    dies_ok { Parse::Method::Signatures->signature($sig) } $msg;
+}, @invalid);
+
+sub test_sigs {
+    my ($test, @sigs) = @_;
+
+    for my $row (@sigs) {
+        my ($sig, $msg, $todo) = @{ $row };
+        TODO: {
+            todo_skip $todo, 1 if $todo;
+            $test->($sig, $msg);
+        }
     }
 }
