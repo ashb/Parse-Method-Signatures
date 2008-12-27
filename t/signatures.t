@@ -29,6 +29,7 @@ my @sigs = (
     ['(:apan($affe)!)',         'required long named'],
     ['( $x = 42)',              'positional with default'],
     ['(:$x = 42)',              'named with default'],
+    ['($x, $y = $x)',           'default based on other paramter', 'TODO'],
     ['(Str :$who, Int :$age where { $_ > 0 })',
                                 'complex with constraint'],
     ['(Str $name, Bool :$excited = 0)',
