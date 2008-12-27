@@ -42,8 +42,12 @@ Int :$baz! = 42 where { $_ % 2 == 0 } where { $_ > 10 })#,
 plan tests => scalar @sigs;
 
 for my $row (@sigs) {
-    my ($sig, $msg) = @{ $row };
-    lives_ok {
-        Parse::Method::Signatures->signature($sig);
-    } $msg;
+    my ($sig, $msg, $todo) = @{ $row };
+    TODO: {
+        todo_skip $todo, 1 if $todo;
+
+        lives_ok {
+            Parse::Method::Signatures->signature($sig);
+        } $msg;
+    }
 }
