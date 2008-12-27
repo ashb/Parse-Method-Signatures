@@ -1,49 +1,32 @@
 use strict;
 use warnings;
 
-use Test::More tests => 13;
+use Test::More;
 use Test::Exception;
+use Parse::Method::Signatures;
 
-use_ok('Parse::Method::Signatures') or BAIL_OUT('Cannot continue');
-
-
-
-lives_ok { Parse::Method::Signatures->signature('(Str $name)'); }
-         'parsed';
-
-lives_ok { Parse::Method::Signatures->signature('(Str :$who, Int :$age where { $_ > 0 })'); }
-         'parsed';
-
-lives_ok { Parse::Method::Signatures->signature('(Str $name, Bool :$excited = 0)'); }
-         'parsed';
-
-lives_ok { Parse::Method::Signatures->signature('(Animal|Human $affe)'); }
-         'parsed';
-
-lives_ok { Parse::Method::Signatures->signature('(:$a, :$b, :$c)'); }
-         'parsed';
-
-lives_ok { Parse::Method::Signatures->signature('( $a,  $b, :$c)'); }
-         'parsed';
-
-lives_ok { Parse::Method::Signatures->signature('($a , $b!, :$c!, :$d!)'); }
-         'parsed';
-
-lives_ok { Parse::Method::Signatures->signature('($a?, $b?, :$c , :$d?)'); }
-         'parsed';
-
-lives_ok { Parse::Method::Signatures->signature('($self:  $moo)'); }
-         'parsed';
-
-lives_ok { Parse::Method::Signatures->signature('(:     $affe ) # called as $obj->foo(affe => $value)'); }
-         'parsed';
-
-lives_ok { Parse::Method::Signatures->signature('(:apan($affe)) # called as $obj->foo(apan => $value)'); }
-         'parsed';
-
-lives_ok { Parse::Method::Signatures->signature(q#(SomeClass $thing where { $_->can('stuff') }:
+my @sigs = (
+    ['(Str $name)'],
+    ['(Str :$who, Int :$age where { $_ > 0 })'],
+    ['(Str $name, Bool :$excited = 0)'],
+    ['(Animal|Human $affe)'],
+    ['(:$a, :$b, :$c)'],
+    ['( $a,  $b, :$c)'],
+    ['($a , $b!, :$c!, :$d!)'],
+    ['($a?, $b?, :$c , :$d?)'],
+    ['($self:  $moo)'],
+    ['(:     $affe ) # called as $obj->foo(affe => $value)'],
+    ['(:apan($affe)) # called as $obj->foo(apan => $value)'],
+    [q#(SomeClass $thing where { $_->can('stuff') }:
 Str  $bar  = "apan"
-Int :$baz! = 42 where { $_ % 2 == 0 } where { $_ > 10 })#)}
-         'parsed';
+Int :$baz! = 42 where { $_ % 2 == 0 } where { $_ > 10 })#],
+);
 
+plan tests => scalar @sigs;
 
+for my $row (@sigs) {
+    my ($sig, $msg) = @{ $row };
+    lives_ok {
+        Parse::Method::Signatures->signature($sig);
+    } ($msg || 'parsed');
+}
