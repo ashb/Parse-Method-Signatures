@@ -3,8 +3,8 @@ use inc::Module::Install 0.77;
 use strict;
 use warnings;
 
-name 'SlimSignature';
-all_from 'lib/SlimSignature.pm';
+name 'Parse-Method-Signatures';
+all_from 'lib/Parse/Method/Signatures.pm';
 
 requires 'Text::Balanced' => 2.000000;
 

@@ -1,4 +1,4 @@
-package SlimSignature;
+package Parse::Method::Signatures;
 
 use Moose;
 use Text::Balanced qw(
@@ -371,7 +371,7 @@ __END__
 
 =head1 NAME
 
-SlimSignature - Perl6 like method signature parser
+Parse::Method::Signatures - Perl6 like method signature parser
 
 =head1 DESCRIPTION
 
@@ -395,14 +395,14 @@ called as class methods.
 
 =head2 signature
 
- my $sig = SlimSignature->signature( '(Str $foo)' )
+ my $sig = Parse::Method::Signatures->signature( '(Str $foo)' )
 
 Attempts to parse the (bracketed) method signature. Returns a value or dies on
 error.
 
 =head2 param
 
-  my $param = SlimSignature->param( 'Str $foo where { length($_) < 10 }') 
+  my $param = Parse::Method::Signatures->param( 'Str $foo where { length($_) < 10 }') 
 
 Attempts to parse the specification for a single parameter. Returns value or
 dies on error.

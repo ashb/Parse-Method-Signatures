@@ -4,44 +4,44 @@ use warnings;
 use Test::More tests => 13;
 use Test::Exception;
 
-use_ok('SlimSignature') or BAIL_OUT('Cannot continue');
+use_ok('Parse::Method::Signatures') or BAIL_OUT('Cannot continue');
 
 
 
-lives_ok { SlimSignature->signature('(Str $name)'); }
+lives_ok { Parse::Method::Signatures->signature('(Str $name)'); }
          'parsed';
 
-lives_ok { SlimSignature->signature('(Str :$who, Int :$age where { $_ > 0 })'); }
+lives_ok { Parse::Method::Signatures->signature('(Str :$who, Int :$age where { $_ > 0 })'); }
          'parsed';
 
-lives_ok { SlimSignature->signature('(Str $name, Bool :$excited = 0)'); }
+lives_ok { Parse::Method::Signatures->signature('(Str $name, Bool :$excited = 0)'); }
          'parsed';
 
-lives_ok { SlimSignature->signature('(Animal|Human $affe)'); }
+lives_ok { Parse::Method::Signatures->signature('(Animal|Human $affe)'); }
          'parsed';
 
-lives_ok { SlimSignature->signature('(:$a, :$b, :$c)'); }
+lives_ok { Parse::Method::Signatures->signature('(:$a, :$b, :$c)'); }
          'parsed';
 
-lives_ok { SlimSignature->signature('( $a,  $b, :$c)'); }
+lives_ok { Parse::Method::Signatures->signature('( $a,  $b, :$c)'); }
          'parsed';
 
-lives_ok { SlimSignature->signature('($a , $b!, :$c!, :$d!)'); }
+lives_ok { Parse::Method::Signatures->signature('($a , $b!, :$c!, :$d!)'); }
          'parsed';
 
-lives_ok { SlimSignature->signature('($a?, $b?, :$c , :$d?)'); }
+lives_ok { Parse::Method::Signatures->signature('($a?, $b?, :$c , :$d?)'); }
          'parsed';
 
-lives_ok { SlimSignature->signature('($self:  $moo)'); }
+lives_ok { Parse::Method::Signatures->signature('($self:  $moo)'); }
          'parsed';
 
-lives_ok { SlimSignature->signature('(:     $affe ) # called as $obj->foo(affe => $value)'); }
+lives_ok { Parse::Method::Signatures->signature('(:     $affe ) # called as $obj->foo(affe => $value)'); }
          'parsed';
 
-lives_ok { SlimSignature->signature('(:apan($affe)) # called as $obj->foo(apan => $value)'); }
+lives_ok { Parse::Method::Signatures->signature('(:apan($affe)) # called as $obj->foo(apan => $value)'); }
          'parsed';
 
-lives_ok { SlimSignature->signature(q#(SomeClass $thing where { $_->can('stuff') }:
+lives_ok { Parse::Method::Signatures->signature(q#(SomeClass $thing where { $_->can('stuff') }:
 Str  $bar  = "apan"
 Int :$baz! = 42 where { $_ % 2 == 0 } where { $_ > 10 })#)}
          'parsed';
