@@ -38,7 +38,7 @@ my @sigs = (
     ['( $x = q"foo")',          'default with q"" quoting'],
     ['( $x = q{foo})',          'default with q{} quoting', 'TODO'],
     ['( $x = q(foo))',          'default with q() quoting', 'TODO'],
-    ['( $x = q,foo,)',          'default with q() quoting', 'TODO'],
+    ['( $x = q,foo,)',          'default with q,, quoting', 'TODO'],
     ['($x, $y = $x)',           'default based on other paramter', 'TODO'],
     ['(Str :$who, Int :$age where { $_ > 0 })',
                                 'complex with constraint'],
