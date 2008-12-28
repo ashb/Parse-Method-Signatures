@@ -17,6 +17,8 @@ my @sigs = (
     ['(Str $name)',             'typed positional'],
     ['(Int $x, Str $y)',        'multiple typed positionals'],
     ['(Animal|Human $affe)',    'type constraint alternative'],
+    ['(Tuple[Int,Str] $x)',     'parameterized types', 'TODO'],
+    ['(Str|Tuple[Int,Str] $x)', 'parameterized with alternative', 'TODO'],
     ['(:$x)',                   'optional named'],
     ['(:$x!)',                  'required named'],
     ['($x, $y , :$z)',          'positional and named'],
