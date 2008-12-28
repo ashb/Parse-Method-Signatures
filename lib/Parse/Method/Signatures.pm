@@ -7,6 +7,8 @@ use Text::Balanced qw(
   extract_quotelike
 );
 
+use namespace::clean -except => 'meta';
+
 our $VERSION = 1.000000;
 
 has 'tokens' => (
