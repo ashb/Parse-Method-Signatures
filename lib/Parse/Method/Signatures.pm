@@ -2,12 +2,10 @@ package Parse::Method::Signatures;
 
 use Moose;
 use Text::Balanced qw(
-  extract_codeblock 
+  extract_codeblock
   extract_variable
   extract_quotelike
 );
-
-use Carp qw/croak/;
 
 our $VERSION = 1.000000;
 
