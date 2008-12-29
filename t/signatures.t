@@ -82,6 +82,13 @@ my @invalid = (
     ['({$x, $y})',              'unpacking hash ref to something not named'],
 );
 
+=for later to decide
+
+    (@x, $y) - is this invalid or will $y take the last element of the list?
+               same problem exists inside [], etc
+
+=cut
+
 plan tests => scalar @sigs + scalar @invalid;
 
 test_sigs(sub {
