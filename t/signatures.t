@@ -35,7 +35,11 @@ my @sigs = (
     ['( $x = "foo")',           'simple string default'],
     ['( $x = "foo, bar")',      'string default with comma'],
     ["(\$x = 'foo, bar')",      'single quoted default with comma'],
-    ['($x, $y = $x)',           'default based on other paramter'],
+    ['( $x = q"foo")',          'default with q"" quoting'],
+    ['( $x = q{foo})',          'default with q{} quoting', 'TODO'],
+    ['( $x = q(foo))',          'default with q() quoting', 'TODO'],
+    ['( $x = q,foo,)',          'default with q,, quoting', 'TODO'],
+    ['($x, $y = $x)',           'default based on other paramter', 'TODO'],
     ['(Str :$who, Int :$age where { $_ > 0 })',
                                 'complex with constraint'],
     ['(Str $name, Bool :$excited = 0)',
@@ -46,6 +50,23 @@ Int :$baz! = 42 where { $_ % 2 == 0 } where { $_ > 10 })#,
                                 'complex invocant, defaults and constraints'],
     [q{($param1 # Foo bar
         $param2?)},             'comments in multiline'],
+    ['(@x)',                    'positional array', 'TODO'],
+    ['($x, @y)',                'positinal scalar and array', 'TODO'],
+    ['(%x)',                    'positinal hash', 'TOOD'],
+    ['($x, %y)',                'positinal scalar and hash', 'TOOD'],
+    ['([$x, $y])',              'simple array ref unpacking', 'TODO'],
+    ['([@x])',                  'array ref unpacking into array', 'TODO'],
+    ['([$x, $y, @rest])',       'array ref unpacking into scalars and arrays', 'TODO'],
+    ['($x, [$y, $z, @rest])',   'array ref unpacking combined with normal positionals', 'TODO'],
+    ['([$y, $z, @rest], $x)',   'array ref unpacking combined with normal positionals', 'TODO'],
+    ['([$y, $z, @rest], :$x)',  'array ref unpacking combined with named', 'TODO'],
+    ['(:foo([$x, $y, @rest]))', 'named array ref unpacking', 'TODO'],
+    ['({%x})',                  'hash ref unpacking into hash', 'TODO'],
+    ['({:$x, :$y, %rest})',     'hash ref unpacking into scalars and hash', 'TODO'],
+    ['($x, {:$y, :$z, %rest})', 'hash ref unpacking combined with normal positionals', 'TODO'],
+    ['({:$y, :$z, %rest}, $x)', 'hash ref unpacking combined with normal positionals', 'TODO'],
+    ['({:$x, :$y, %r}, :$z)',   'hash ref unpacking combined with named', 'TODO'],
+    ['(:foo({:$x, :$y, %r}))',  'named hash ref unpacking', 'TODO'],
 );
 
 my @invalid = (
@@ -53,7 +74,22 @@ my @invalid = (
     ['($x?, $y)',               'required positional after optional one'],
     ['(Int| $x)',               'invalid type alternation'],
     ['(|Int $x)',               'invalid type alternation'],
+    ['(@x, @y)',                'multiple arrays'],
+    ['(%x, %y)',                'multiple hashes'],
+    ['(:@x)',                   'named array'],
+    ['(:%x)',                   'named hash'],
+    ['(:[@x])',                 'named array ref unpacking without label'],
+    ['([:$x, :$y])',            'unpacking array ref to something not positional'],
+    ['(:{%x})',                 'named hash ref unpacking without label'],
+    ['({$x, $y})',              'unpacking hash ref to something not named'],
 );
+
+=for later to decide
+
+    (@x, $y) - is this invalid or will $y take the last element of the list?
+               same problem exists inside [], etc
+
+=cut
 
 plan tests => scalar @sigs + scalar @invalid;
 
