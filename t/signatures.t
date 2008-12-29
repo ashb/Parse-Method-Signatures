@@ -74,6 +74,7 @@ my @invalid = (
     ['($x?, $y)',               'required positional after optional one'],
     ['(Int| $x)',               'invalid type alternation'],
     ['(|Int $x)',               'invalid type alternation'],
+    ['(@x, $y)',                'scalar after array', 'TODO'],
     ['(@x, @y)',                'multiple arrays', 'TODO'],
     ['(%x, %y)',                'multiple hashes', 'TODO'],
     ['(:@x)',                   'named array', 'TODO'],
@@ -83,13 +84,6 @@ my @invalid = (
     ['(:{%x})',                 'named hash ref unpacking without label'],
     ['({$x, $y})',              'unpacking hash ref to something not named'],
 );
-
-=for later to decide
-
-    (@x, $y) - is this invalid or will $y take the last element of the list?
-               same problem exists inside [], etc
-
-=cut
 
 plan tests => scalar @sigs + scalar @invalid;
 
