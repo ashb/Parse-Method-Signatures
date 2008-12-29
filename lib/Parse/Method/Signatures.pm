@@ -348,7 +348,13 @@ sub next_token {
     if ($LEXTABLE{$cls}) {
       return { type => $LEXTABLE{$cls}, literal => $cls, orig => $orig };
     }
-    return { type => 'class', literal => $cls, orig => $orig };
+
+    my $tc = $self->extract_tc($cls);
+    return { 
+      type => 'class', 
+      literal => $tc, 
+      orig => $orig . substr($tc, length($cls))
+    };
   }
 
   return { type => 'var', literal => $var, orig => $orig }
@@ -356,6 +362,39 @@ sub next_token {
 
 
   die "Shouldn't get here!";
+}
+
+sub extract_tc {
+  my ($self, $tc) = @_;
+  my $data = $self->_input;
+
+  my $level = 0;
+  while ($$data =~ s/^([|\[\],])//x) {
+    $tc .= $1;
+    if ($1 eq '[') {
+      $level++;
+    } elsif ($1 eq ',') {
+      die "Unexpected '$1' in type constraint after '$tc', $level, '$$data'\n"
+        unless $level;
+    } elsif ($1 eq ']' ) {
+      die "Unexpected '$1' in type constraint after '$tc', $level, '$$data'\n"
+        unless $level;
+      $level--;
+      next;
+    }
+
+    die "Error parsing type constraint after '$tc' (class-like expected)\n"
+      unless $$data =~ s/^ (
+        [A-Za-z][a-zA-Z0-0_-]+
+        (?:::[A-Za-z][a-zA-Z0-0_-]+)*
+        ) //x;
+    $tc .= $1;
+  }
+
+  die "Unbalanced [] in type constraint: '$tc'\n"
+    if $level;
+
+  return $tc;
 }
 
 sub remaining_input {
