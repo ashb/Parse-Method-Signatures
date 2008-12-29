@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 16;
+use Test::More tests => 17;
 use Test::Differences;
 
 use_ok('Parse::Method::Signatures') or BAIL_OUT('Cannot continue');
@@ -221,3 +221,12 @@ eq_or_diff(
     ') further data }'],
 );
 
+eq_or_diff(
+  [ Parse::Method::Signatures->signature( "(\$param1 # Foo bar\n \$param2) postfix") ],
+  [ { params => [
+      { var => '$param1' },
+      { var => '$param2' },
+    ] },
+    'postfix'
+  ]
+);

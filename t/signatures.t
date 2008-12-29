@@ -44,6 +44,8 @@ my @sigs = (
 Str  $bar  = "apan"
 Int :$baz! = 42 where { $_ % 2 == 0 } where { $_ > 10 })#,
                                 'complex invocant, defaults and constraints'],
+    [q{($param1 # Foo bar
+        $param2?)},             'comments in multiline'],
 );
 
 my @invalid = (

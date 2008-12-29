@@ -332,7 +332,7 @@ our %LEXTABLE = (
 sub next_token {
   my ($self, $data) = @_;
 
-  if ($$data =~ s/^(\s*[\r\n]\s*)//xs) {
+  if ($$data =~ s/^(\s*(?:#.*?)?[\r\n]\s*)//s) {
     return { type => "\n", literal => $1, orig => $1 }
   }
 
