@@ -59,6 +59,10 @@ my @invalid = (
     ['($x?, $y)',               'required positional after optional one', 'TODO'],
     ['(Int| $x)',               'invalid type alternation'],
     ['(|Int $x)',               'invalid type alternation'],
+    ['(@x, @y)',                'multiple arrays'],
+    ['(%x, %y)',                'multiple hashes'],
+    ['(:@x)',                   'named array'],
+    ['(:%x)',                   'named hash'],
 );
 
 plan tests => scalar @sigs + scalar @invalid;
