@@ -35,7 +35,7 @@ my @sigs = (
     ['( $x = "foo")',           'simple string default'],
     ['( $x = "foo, bar")',      'string default with comma'],
     ["(\$x = 'foo, bar')",      'single quoted default with comma'],
-    ['($x, $y = $x)',           'default based on other paramter', 'TODO'],
+    ['($x, $y = $x)',           'default based on other paramter'],
     ['(Str :$who, Int :$age where { $_ > 0 })',
                                 'complex with constraint'],
     ['(Str $name, Bool :$excited = 0)',

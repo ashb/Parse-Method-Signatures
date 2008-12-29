@@ -249,6 +249,10 @@ sub _quote_like {
 
   my @quote = extract_quotelike($$data);
 
+  if (blessed $@) {
+    # Error is at start of string, so its *probably* no opening quote found
+    return if $@->{pos} == 0;
+  }
   die "$@" if $@; 
   return unless $quote[0];
 
@@ -265,10 +269,11 @@ sub _quote_like {
 sub _variable_like {
   my ($self) = @_;
 
-  my $data = $self->_input;
-  my @var = extract_quotelike($$data);
-
-  die "$@" if $@; 
+  my $token = $self->token;
+  if ($token->{type} eq 'var') {
+    $self->consume_token;
+    return $token;
+  }
 }
 
 sub assert_token {
@@ -323,7 +328,7 @@ sub next_token {
       [A-Za-z][a-zA-Z0-0_-]+
       (?:::[A-Za-z][a-zA-Z0-0_-]+)*
     ) |
-    (\$[_A-Za-z][a-zA-Z0-9_]*)
+    ([\$\%\@][_A-Za-z][a-zA-Z0-9_]*)
   ) \s*) /x;
 
   # symbols in $2
@@ -384,8 +389,6 @@ deemed useful for L<TryCatch> and L<MooseX::Method::Signatures>.
 
 =over
 
-=item * Rename the damn thing
-
 =item * Work out return interface
 
 =back
@@ -421,7 +424,9 @@ Constant folding will also not be performed.
 
 =head1 AUTHOR
 
-Ash Berlin C<< <ash@cpan.org> >>
+Ash Berlin C<< <ash@cpan.org> >>.
+
+Thanks to rafl.
 
 =head1 LICENSE
 
