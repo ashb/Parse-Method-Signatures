@@ -52,6 +52,19 @@ Int :$baz! = 42 where { $_ % 2 == 0 } where { $_ > 10 })#,
     ['($x, @y)',                'positinal scalar and array', 'TODO'],
     ['(%x)',                    'positinal hash', 'TOOD'],
     ['($x, %y)',                'positinal scalar and hash', 'TOOD'],
+    ['([$x, $y])',              'simple array ref unpacking', 'TODO'],
+    ['([@x])',                  'array ref unpacking into array', 'TODO'],
+    ['([$x, $y, @rest])',       'array ref unpacking into scalars and arrays', 'TODO'],
+    ['($x, [$y, $z, @rest])',   'array ref unpacking combined with normal positionals', 'TODO'],
+    ['([$y, $z, @rest], $x)',   'array ref unpacking combined with normal positionals', 'TODO'],
+    ['([$y, $z, @rest], :$x)',  'array ref unpacking combined with named', 'TODO'],
+    ['(:foo([$x, $y, @rest]))', 'named array ref unpacking', 'TODO'],
+    ['({%x})',                  'hash ref unpacking into hash', 'TODO'],
+    ['({:$x, :$y, %rest})',     'hash ref unpacking into scalars and hash', 'TODO'],
+    ['($x, {:$y, :$z, %rest})', 'hash ref unpacking combined with normal positionals', 'TODO'],
+    ['({:$y, :$z, %rest}, $x)', 'hash ref unpacking combined with normal positionals', 'TODO'],
+    ['({:$x, $y, %rest}, :$z)', 'hash ref unpacking combined with named', 'TODO'],
+    ['(:foo({:$x, :$y, %r}))',  'named hash ref unpacking', 'TODO'],
 );
 
 my @invalid = (
@@ -63,6 +76,10 @@ my @invalid = (
     ['(%x, %y)',                'multiple hashes'],
     ['(:@x)',                   'named array'],
     ['(:%x)',                   'named hash'],
+    ['(:[@x])',                 'named array ref unpacking without label'],
+    ['([:$x, :$y])',            'unpacking array ref to something not positional'],
+    ['(:{%x})',                 'named hash ref unpacking without label'],
+    ['({$x, $y})',              'unpacking hash ref to something not named'],
 );
 
 plan tests => scalar @sigs + scalar @invalid;
