@@ -65,22 +65,36 @@ sub signature {
   if ($param && $self->token->{type} eq ':') {
     # That param was actualy the invocant
     $sig->{invocant} = $param;
+    die "Invocant cannot be optional"
+      if $param->{optional};
+
     $self->consume_token;
     $param = $self->param;
   }
 
-  push @$params, $param
-    if $param;
-
-  # Params can be sperarated by , or \n
-  while ($self->token->{type} eq ',' ||
-         $self->token->{type} eq "\n") {
-    $self->consume_token;
-
-    $param = $self->param;
-    die "parameter expected"
-      if !$param;
+  my $opt_pos_param;
+  if ($param) {
     push @$params, $param;
+
+    $opt_pos_param = $opt_pos_param || !$param->{named} && $param->{optional};
+
+    # Params can be sperarated by , or \n
+    while ($self->token->{type} eq ',' ||
+           $self->token->{type} eq "\n") {
+      $self->consume_token;
+
+      $param = $self->param;
+      die "parameter expected"
+        if !$param;
+
+      if (!$param->{named} && !$param->{optional} && $opt_pos_param) {
+        die "Invalid: Required positional param '"
+          . $param->{var} . "' found after optional one.\n";
+      }
+        
+      push @$params, $param;
+      $opt_pos_param = $opt_pos_param || !$param->{named} && $param->{optional};
+    }
   }
 
   $self->assert_token(')');

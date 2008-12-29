@@ -47,8 +47,8 @@ Int :$baz! = 42 where { $_ % 2 == 0 } where { $_ > 10 })#,
 );
 
 my @invalid = (
-    ['($x?:)',                  'optional invocant', 'TODO'],
-    ['($x?, $y)',               'required positional after optional one', 'TODO'],
+    ['($x?:)',                  'optional invocant'],
+    ['($x?, $y)',               'required positional after optional one'],
     ['(Int| $x)',               'invalid type alternation'],
     ['(|Int $x)',               'invalid type alternation'],
 );
