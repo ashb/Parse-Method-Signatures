@@ -48,6 +48,10 @@ my @sigs = (
 Str  $bar  = "apan"
 Int :$baz! = 42 where { $_ % 2 == 0 } where { $_ > 10 })#,
                                 'complex invocant, defaults and constraints'],
+    ['(@x)',                    'positional array', 'TODO'],
+    ['($x, @y)',                'positinal scalar and array', 'TODO'],
+    ['(%x)',                    'positinal hash', 'TOOD'],
+    ['($x, %y)',                'positinal scalar and hash', 'TOOD'],
 );
 
 my @invalid = (
