@@ -63,7 +63,7 @@ Int :$baz! = 42 where { $_ % 2 == 0 } where { $_ > 10 })#,
     ['({:$x, :$y, %rest})',     'hash ref unpacking into scalars and hash', 'TODO'],
     ['($x, {:$y, :$z, %rest})', 'hash ref unpacking combined with normal positionals', 'TODO'],
     ['({:$y, :$z, %rest}, $x)', 'hash ref unpacking combined with normal positionals', 'TODO'],
-    ['({:$x, $y, %rest}, :$z)', 'hash ref unpacking combined with named', 'TODO'],
+    ['({:$x, :$y, %r}, :$z)',   'hash ref unpacking combined with named', 'TODO'],
     ['(:foo({:$x, :$y, %r}))',  'named hash ref unpacking', 'TODO'],
 );
 
