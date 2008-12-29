@@ -270,7 +270,7 @@ sub _quote_like {
   die "$@" if $@; 
   return unless $quote[0];
 
-  my $op = $quote[4];
+  my $op = $quote[3] || $quote[4];
 
   my %whitelist = map { $_ => 1 } qw(q qq qw qr " ');
   die "rejected quotelike operator: $op" unless $whitelist{$op};
