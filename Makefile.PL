@@ -18,5 +18,12 @@ test_requires 'Test::More';
 test_requires 'Test::Differences';
 test_requires 'Test::Exception';
 
+postamble(<<"EOM");
+testcover: pm_to_blib
+\tcover -delete
+\tHARNESS_PERL_SWITCHES=-MDevel::Cover \$(MAKE) test
+\tcover
+EOM
+
 auto_install;
 WriteAll;
