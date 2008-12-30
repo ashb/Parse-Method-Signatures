@@ -68,7 +68,7 @@ my @sigs = (
     ['({:$y, :$z, %rest}, $x)', 'hash ref unpacking combined with normal positionals', 'TODO'],
     ['({:$x, :$y, %r}, :$z)',   'hash ref unpacking combined with named', 'TODO'],
     ['(:foo({:$x, :$y, %r}))',  'named hash ref unpacking', 'TODO'],
-    ['(:foo($), :bar(@))',      'named placeholders', 'TODO'],
+    ['(:foo($), :bar(@))',      'named placeholders'],
 );
 
 my @alternative = (
