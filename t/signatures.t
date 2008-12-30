@@ -20,6 +20,9 @@ my @sigs = (
     ['(Some::Class $x)',        'type constraint with colon'],
     ['(Tuple[Int,Str] $x)',     'parameterized types'], 
     ['(Str|Tuple[Int,Str] $x)', 'parameterized with alternative'],
+    ['($: $x, $y, $z)',         'dummy invocant', 'not implemented yet'],
+    ['($, $, $x)',              'dummy positionals', 'not implemented yet'],
+    ['($x, @)',                 'dummy list', 'not implemented yet'],
     ['(:$x)',                   'optional named'],
     ['(:$x!)',                  'required named'],
     ['(Str :$x)',               'named with type constraint'],
@@ -65,6 +68,7 @@ my @sigs = (
     ['({:$y, :$z, %rest}, $x)', 'hash ref unpacking combined with normal positionals', 'TODO'],
     ['({:$x, :$y, %r}, :$z)',   'hash ref unpacking combined with named', 'TODO'],
     ['(:foo({:$x, :$y, %r}))',  'named hash ref unpacking', 'TODO'],
+    ['(:foo($), :bar(@))',      'named placeholders', 'TODO'],
 );
 
 my @alternative = (
@@ -82,8 +86,11 @@ my @invalid = (
     ['(@x, $y)',                'scalar after array', 'TODO'],
     ['(@x, @y)',                'multiple arrays', 'TODO'],
     ['(%x, %y)',                'multiple hashes', 'TODO'],
+    ['(@, $x)',                 'scalar after array placeholder'],
     ['(:@x)',                   'named array', 'TODO'],
     ['(:%x)',                   'named hash', 'TODO'],
+    ['(:@)',                    'named array placeholder'],
+    ['(:%)',                    'named hash placeholder'],
     ['(:[@x])',                 'named array ref unpacking without label'],
     ['([:$x, :$y])',            'unpacking array ref to something not positional'],
     ['(:{%x})',                 'named hash ref unpacking without label'],
