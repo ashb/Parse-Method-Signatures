@@ -1,7 +1,6 @@
 package Parse::Method::Signatures::Param;
 
 use Moose;
-use MooseX::StrictConstructor; # FIXME: remove later
 use MooseX::Types::Moose qw/ArrayRef Str/;
 use Parse::Method::Signatures::Types qw/VariableName TypeConstraint/;
 use namespace::clean -except => 'meta';

@@ -1,6 +1,7 @@
 package Parse::Method::Signatures;
 
 use Moose;
+use MooseX::Types::Moose qw/ArrayRef HashRef ScalarRef Int Str/;
 use Text::Balanced qw(
   extract_codeblock
   extract_variable
@@ -12,29 +13,29 @@ use namespace::clean -except => 'meta';
 our $VERSION = 1.000000;
 
 has 'tokens' => (
-  is => 'ro',
-  isa => 'ArrayRef',
-  init_arg => undef,
-  default => sub { [] },
+    is       => 'ro',
+    isa      => ArrayRef[HashRef],
+    init_arg => undef,
+    default  => sub { [] },
 );
 
 has 'input' => (
-  is => 'ro',
-  isa => 'Str',
-  required => 1
+    is       => 'ro',
+    isa      => Str,
+    required => 1
 );
 
 has 'offset' => (
-  isa => 'Int',
-  is => 'rw',
-  default => 0,
+    is      => 'rw',
+    isa     => Int,
+    default => 0,
 );
 
 has '_input' => (
-  is => 'ro',
-  isa => 'ScalarRef',
-  init_arg => undef,
-  lazy_build => 1
+    is         => 'ro',
+    isa        => ScalarRef,
+    init_arg   => undef,
+    lazy_build => 1
 );
 
 has 'signature_class' => (
