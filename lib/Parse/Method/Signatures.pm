@@ -93,7 +93,10 @@ sub signature {
 
   $self->assert_token('(');
 
-  my $args = {};
+  my $args = {
+    required_positional_params => 0,
+    required_named_params => [],
+  };
   my $params = [];
 
   my ($param, $opts) = $self->param;
@@ -102,7 +105,7 @@ sub signature {
     # That param was actualy the invocant
     $args->{invocant} = $param;
     die "Invocant cannot be optional"
-      if $opts->{optional};
+      if !$opts->{required};
 
     $self->consume_token;
     ($param, $opts) = $self->param;
@@ -112,7 +115,14 @@ sub signature {
   if ($param) {
     push @$params, $param;
 
-    $opt_pos_param = $opt_pos_param || !$opts->{named} && $opts->{optional};
+    $opt_pos_param = $opt_pos_param || !$opts->{required};
+    if ($opts->{required}) {
+      if ($opts->{named}) {
+        push @{ $args->{required_named_params} }, $param->label;
+      } else {
+        $args->{required_positional_params}++;
+      }
+    }
 
     # Params can be sperarated by , or \n
     while ($self->token->{type} eq ',' ||
@@ -123,13 +133,20 @@ sub signature {
       die "parameter expected"
         if !$param;
 
-      if (!$opts->{named} && !$opts->{optional} && $opt_pos_param) {
+      if (!$opts->{named} && $opts->{required} && $opt_pos_param) {
         die "Invalid: Required positional param '"
           . $param->{variable_name} . "' found after optional one.\n";
       }
 
       push @$params, $param;
-      $opt_pos_param = $opt_pos_param || !$opts->{named} && $opts->{optional};
+      $opt_pos_param = $opt_pos_param || !$opts->{optional};
+      if ($opts->{required}) {
+        if ($opts->{named}) {
+          push @{ $args->{required_named_params} }, $param->label;
+        } else {
+          $args->{required_positional_params}++;
+        }
+      }
     }
   }
 
@@ -194,6 +211,9 @@ sub param {
     }
   }
 
+  # positionals are required by default, named params aren't
+  $options->{required} = !$options->{named};
+
   return if (!$consumed && $token->{type} ne 'var');
 
   $param->{variable_name} = $self->assert_token('var')->{literal};
@@ -205,7 +225,7 @@ sub param {
   $token = $self->token;
 
   if ($token->{type} eq '?') {
-    $options->{optional} = 1;
+    $options->{required} = 0;
     $self->consume_token;
     $token = $self->token;
   } elsif ($token->{type} eq '!') {

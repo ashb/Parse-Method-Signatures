@@ -1,7 +1,7 @@
 package Parse::Method::Signatures::Sig;
 
 use Moose;
-use MooseX::Types::Moose qw/ArrayRef HashRef/;
+use MooseX::Types::Moose qw/ArrayRef HashRef Str Int Bool/;
 use aliased 'Parse::Method::Signatures::Param';
 use aliased 'Parse::Method::Signatures::Param::Named';
 use List::MoreUtils qw/part/;
@@ -19,6 +19,12 @@ has positional_params => (
     predicate => 'has_positional_params',
 );
 
+has required_positional_params => (
+    is       => 'ro',
+    isa      => Int,
+    required => 1,
+);
+
 has named_params => (
     is        => 'ro',
     isa       => ArrayRef[Param],
@@ -28,6 +34,18 @@ has named_params => (
 has _named_map => (
     is         => 'ro',
     isa        => HashRef[Param],
+    lazy_build => 1,
+);
+
+has required_named_params => (
+    is       => 'ro',
+    isa      => ArrayRef[Str],
+    required => 1,
+);
+
+has _required_named_map => (
+    is         => 'ro',
+    isa        => HashRef[Bool],
     lazy_build => 1,
 );
 
@@ -52,6 +70,16 @@ sub _build__named_map {
 sub named_param {
     my ($self, $name) = @_;
     return $self->_named_map->{$name};
+}
+
+sub _build__required_named_map {
+    my ($self) = @_;
+    return { map { $self->named_param($_)->label => 1 } @{ $self->_required_named_map } };
+}
+
+sub named_param_is_required {
+    my ($self, $name) = @_;
+    return $self->_required_named_map->{$name};
 }
 
 __PACKAGE__->meta->make_immutable;
