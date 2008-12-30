@@ -37,9 +37,45 @@ has '_input' => (
   lazy_build => 1
 );
 
+has 'signature_class' => (
+    is      => 'ro',
+    isa     => 'Str',
+    default => 'Parse::Method::Signatures::Sig',
+);
+
+has 'param_class_positional' => (
+    is      => 'ro',
+    isa     => 'Str',
+    default => 'Parse::Method::Signatures::Param',
+);
+
+has 'param_class_named' => (
+    is      => 'ro',
+    isa     => 'Str',
+    default => 'Parse::Method::Signatures::Param::Named',
+);
+
+sub BUILD {
+    my ($self) = @_;
+
+    Class::MOP::load_class($_)
+        for map { $self->$_ } qw/
+            signature_class
+            param_class_positional
+            param_class_named/;
+}
+
 sub _build__input {
     my $var = substr($_[0]->input, $_[0]->offset);
     return \$var;
+}
+
+sub create_param {
+    my ($self, $args, $opts) = @_;
+    my $param_class = $opts->{named}
+        ? $self->param_class_named
+        : $self->param_class_positional;
+    return $param_class->new($args);
 }
 
 # signature: O_PAREN
@@ -57,50 +93,51 @@ sub signature {
 
   $self->assert_token('(');
 
-  my $sig = {};
+  my $args = {};
   my $params = [];
 
-  my $param = $self->param;
+  my ($param, $opts) = $self->param;
 
   if ($param && $self->token->{type} eq ':') {
     # That param was actualy the invocant
-    $sig->{invocant} = $param;
+    $args->{invocant} = $param;
     die "Invocant cannot be optional"
-      if $param->{optional};
+      if $opts->{optional};
 
     $self->consume_token;
-    $param = $self->param;
+    ($param, $opts) = $self->param;
   }
 
   my $opt_pos_param;
   if ($param) {
     push @$params, $param;
 
-    $opt_pos_param = $opt_pos_param || !$param->{named} && $param->{optional};
+    $opt_pos_param = $opt_pos_param || !$opts->{named} && $opts->{optional};
 
     # Params can be sperarated by , or \n
     while ($self->token->{type} eq ',' ||
            $self->token->{type} eq "\n") {
       $self->consume_token;
 
-      $param = $self->param;
+      ($param, $opts) = $self->param;
       die "parameter expected"
         if !$param;
 
-      if (!$param->{named} && !$param->{optional} && $opt_pos_param) {
+      if (!$opts->{named} && !$opts->{optional} && $opt_pos_param) {
         die "Invalid: Required positional param '"
-          . $param->{var} . "' found after optional one.\n";
+          . $param->{variable_name} . "' found after optional one.\n";
       }
-        
+
       push @$params, $param;
-      $opt_pos_param = $opt_pos_param || !$param->{named} && $param->{optional};
+      $opt_pos_param = $opt_pos_param || !$opts->{named} && $opts->{optional};
     }
   }
 
   $self->assert_token(')');
-  $sig->{params} = $params;
- 
-  
+  $args->{params} = $params;
+
+  my $sig = $self->signature_class->new($args);
+
   return wantarray ? ($sig, $self->remaining_input) : $sig;
 }
 
@@ -122,24 +159,25 @@ sub param {
   }
 
   my $param = {};
+  my $options = {};
   my $consumed = 0;
 
   my $token = $self->token;
   if ($token->{type} eq 'class') {
-    $param->{tc} = $token->{literal};
+    $param->{type_constraint} = $token->{literal};
     $self->consume_token;
     $token = $self->token;
     while ($token->{type} eq '|') {
       $self->consume_token;
       $token = $self->token;
-      $param->{tc} .= '|' . $self->assert_token('class')->{literal};
+      $param->{type_constraint} .= '|' . $self->assert_token('class')->{literal};
       $token = $self->token;
     }
     $consumed = 1;
   }
 
   if ($token->{type} eq ':') {
-    $param->{named} = 1;
+    $options->{named} = 1;
     $self->consume_token;
     $token = $self->token;
     $consumed = 1;
@@ -158,7 +196,7 @@ sub param {
 
   return if (!$consumed && $token->{type} ne 'var');
 
-  $param->{var} = $self->assert_token('var')->{literal};
+  $param->{variable_name} = $self->assert_token('var')->{literal};
 
   if (defined $param->{label}) {
     $self->assert_token(')');
@@ -167,11 +205,11 @@ sub param {
   $token = $self->token;
 
   if ($token->{type} eq '?') {
-    $param->{optional} = 1;
+    $options->{optional} = 1;
     $self->consume_token;
     $token = $self->token;
   } elsif ($token->{type} eq '!') {
-    $param->{required} = 1;
+    $options->{required} = 1;
     $self->consume_token;
     $token = $self->token;
   }
@@ -180,7 +218,7 @@ sub param {
     # default value
     $self->consume_token;
 
-    $param->{default} = $self->value_ish();
+    $param->{default_value} = $self->value_ish();
 
     $token = $self->token;
   }
@@ -188,14 +226,14 @@ sub param {
   while ($token->{type} eq 'WHERE') {
     $self->consume_token;
 
-    $param->{where} ||= [];
+    $param->{constraints} ||= [];
     my ($code) = extract_codeblock(${$self->_input});
 
     # Text::Balanced *sets* $@. How horrible.
     die "$@" if $@; 
 
     substr(${$self->_input}, 0, length($code), '');
-    push @{$param->{where}}, $code;
+    push @{$param->{constraints}}, $code;
 
     $token = $self->token;
   }
@@ -204,7 +242,7 @@ sub param {
   if ($class_meth) {
     return wantarray ? ($param, $self->remaining_input) : $param;
   } else {
-    return $param;
+    return ($self->create_param($param, $options), $options);
   }
 }
 
