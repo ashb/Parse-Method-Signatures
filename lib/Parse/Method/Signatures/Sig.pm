@@ -83,6 +83,24 @@ sub named_param_is_required {
     return $self->_required_named_map->{$name};
 }
 
+around has_positional_params => sub {
+    my $orig = shift;
+    my $ret = $orig->(@_);
+    return unless $ret;
+
+    my ($self) = @_;
+    return scalar @{ $self->positional_params };
+};
+
+around has_named_params => sub {
+    my $orig = shift;
+    my $ret = $orig->(@_);
+    return unless $ret;
+
+    my ($self) = @_;
+    return scalar @{ $self->named_params };
+};
+
 __PACKAGE__->meta->make_immutable;
 
 1;
