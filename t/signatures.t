@@ -30,7 +30,7 @@ my @sigs = (
     ['($a?, $b?, :$c, :$d)',    'optional positional and named'],
     ['(:$x! where { 1 })',      'required named with constraint'],
     ['($self: $moo)',           'invocant and positional'],
-    ['(:apan($affe) )',         'long named'], # called as $obj->foo(apan => $value)
+    ['(:apan($affe))',          'long named'], # called as $obj->foo(apan => $value)
     ['(:apan($affe)!)',         'required long named'],
     ['($x = 42)',               'positional with default'],
     ['(:$x = 42)',              'named with default'],
