@@ -84,7 +84,9 @@ sub create_param {
 #            params
 #            C_PAREN
 #
-# params: param (COMMA|NEWLINE) params
+# invocant: param ':'
+#
+# params: param COMMA params
 #       | param
 #       | /* NUL */
 sub signature {
@@ -107,6 +109,10 @@ sub signature {
     $args->{invocant} = $param;
     die "Invocant cannot be optional"
       if !$opts->{required};
+    die "Invocant cannot be named"
+      if $opts->{named};
+    die "Invocant cannot have a default value"
+      if $param->has_default_value;
 
     $self->consume_token;
     ($param, $opts) = $self->param;
@@ -157,15 +163,21 @@ sub signature {
   return wantarray ? ($sig, $self->remaining_input) : $sig;
 }
 
+
 # param: classishTCName?
 #        var_name
 #        (OPTIONAL|REQUIRED)
 #        default?
 #        where*
 #
-# var_name : COLON label '(' var ')' # labal is classish, just without :: allowed
-#          | COLON var
-#          | var
+# where: WHERE <code block>
+#
+# var_name : COLON label '(' var ')' # label is classish, with only /a-z0-9_/i allowed
+#          | COLON VAR
+#          | VAR
+#
+# OPTIONAL: '?'
+# REQUIRED: '!'
 sub param {
   my $self = shift;
   my $class_meth;
@@ -357,8 +369,7 @@ sub token {
   while (@{$self->tokens} <= $la) {
     my $token = $self->next_token($self->_input);
 
-    die "Unexepcted EoF"
-      unless $token;
+    $token ||= { type => 'NUL' };
 
     push @{$self->tokens}, $token;
   }
@@ -382,7 +393,7 @@ sub next_token {
   my ($self, $data) = @_;
 
   my $re = qr/^ (\s* (?:
-    ([(){},:=|!?]) |
+    ([(){}\[\],:=|!?]) |
     (
       [A-Za-z][a-zA-Z0-0_-]+
       (?:::[A-Za-z][a-zA-Z0-0_-]+)*

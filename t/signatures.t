@@ -70,6 +70,7 @@ my @sigs = (
 my @alternative = (
     [q{($param1, # Foo bar
         $param2?)},             '($param1, $param2?)',     'comments in multiline'],
+    ['(:$x = "foo")',           '(:$x = "foo")',           'default value stringifies okay'],
 );
 
 my @invalid = (
@@ -88,28 +89,27 @@ my @invalid = (
     ['({$x, $y})',              'unpacking hash ref to something not named'],
     ['($foo where { 1, $bar)',  'unbalanced { in conditional'],
     ['($foo = `pwd`)',          'invalid quote op'],
-    ['($foo = "pwd\')',          'unbalanced quotes'],
+    ['($foo = "pwd\')',         'unbalanced quotes'],
+    ['(:$x:)',                  'named invocant is invalid'],
+    ['(:$x! = "foo":)',         'default value for invocant is invalid'],
 );
 
-plan tests => scalar @sigs * 3 + scalar @alternative * 3 + scalar @invalid;
+plan tests => scalar @sigs + scalar @alternative + scalar @invalid;
 
 test_sigs(sub {
     my ($input, $msg, $todo) = @_;
     my $sig;
-    lives_ok { $sig = Parse::Method::Signatures->signature($input) } $msg;
-    isa_ok($sig, 'Parse::Method::Signatures::Sig');
-    TODO: {
-        todo_skip $todo, 1 if $todo;
-        is($sig->to_string, $input, $msg);
-    }
+    lives_and { 
+      isa_ok(Parse::Method::Signatures->signature($input), 'Parse::Method::Signatures::Sig', $msg)
+    } $msg;
 }, @sigs);
 
 for my $row (@alternative) {
     my ($in, $out, $msg) = @{ $row };
     my $sig;
-    lives_ok { $sig = Parse::Method::Signatures->signature($in) } $msg;
-    isa_ok($sig, 'Parse::Method::Signatures::Sig');
-    is($sig->to_string, $out, $msg);
+    lives_and { 
+      is(Parse::Method::Signatures->signature($in)->to_string, $out, $msg)
+    } $msg;
 }
 
 test_sigs(sub {
