@@ -86,6 +86,9 @@ my @invalid = (
     ['([:$x, :$y])',            'unpacking array ref to something not positional'],
     ['(:{%x})',                 'named hash ref unpacking without label'],
     ['({$x, $y})',              'unpacking hash ref to something not named'],
+    ['($foo where { 1, $bar)',  'unbalanced { in conditional'],
+    ['($foo = `pwd`)',          'invalid quote op'],
+    ['($foo = "pwd\')',          'unbalanced quotes'],
 );
 
 plan tests => scalar @sigs * 3 + scalar @alternative * 3 + scalar @invalid;

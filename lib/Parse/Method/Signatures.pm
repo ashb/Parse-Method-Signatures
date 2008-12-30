@@ -182,12 +182,6 @@ sub param {
     $param->{type_constraint} = $token->{literal};
     $self->consume_token;
     $token = $self->token;
-    while ($token->{type} eq '|') {
-      $self->consume_token;
-      $token = $self->token;
-      $param->{type_constraint} .= '|' . $self->assert_token('class')->{literal};
-      $token = $self->token;
-    }
     $consumed = 1;
   }
 
@@ -319,10 +313,8 @@ sub _quote_like {
 
   my @quote = extract_quotelike($$data);
 
-  if (blessed $@) {
-    # Error is at start of string, so its *probably* no opening quote found
-    return if $@->{pos} == 0;
-  }
+  return if blessed $@ && $@->{error} =~ /^No quotelike operator found after prefix/;
+
   die "$@" if $@; 
   return unless $quote[0];
 
