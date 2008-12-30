@@ -63,7 +63,8 @@ sub BUILD {
         for map { $self->$_ } qw/
             signature_class
             param_class_positional
-            param_class_named/;
+            param_class_named
+        /;
 }
 
 sub _build__input {
