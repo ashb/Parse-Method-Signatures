@@ -28,6 +28,7 @@ my @sigs = (
     ['(:$a, :$b, :$c)',         'multiple named'],
     ['($a, $b, :$c!, :$d!)',    'positional and multiple required named'],
     ['($a?, $b?, :$c, :$d)',    'optional positional and named'],
+    ['(:$x! where { 1 })',      'required named with constraint'],
     ['($self: $moo)',           'invocant and positional'],
     ['(:apan($affe) )',         'long named'], # called as $obj->foo(apan => $value)
     ['(:apan($affe)!)',         'required long named'],
