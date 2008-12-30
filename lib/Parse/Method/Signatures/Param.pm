@@ -23,9 +23,9 @@ has constraints => (
     predicate => 'has_constraints',
 );
 
-# TODO: add TC once default_value is unified
 has default_value => (
     is        => 'ro',
+    isa       => Str,
     predicate => 'has_default_value',
 );
 
