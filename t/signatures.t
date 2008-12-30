@@ -84,11 +84,17 @@ my @invalid = (
     ['({$x, $y})',              'unpacking hash ref to something not named'],
 );
 
-plan tests => scalar @sigs + scalar @invalid;
+plan tests => scalar @sigs * 3 + scalar @invalid;
 
 test_sigs(sub {
-    my ($sig, $msg) = @_;
-    lives_ok { Parse::Method::Signatures->signature($sig) } $msg;
+    my ($input, $msg, $todo) = @_;
+    my $sig;
+    lives_ok { $sig = Parse::Method::Signatures->signature($input) } $msg;
+    isa_ok($sig, 'Parse::Method::Signatures::Sig');
+    TODO: {
+        todo_skip $todo, 1 if $todo;
+        is($sig->to_string, $input, $msg);
+    }
 }, @sigs);
 
 test_sigs(sub {
@@ -103,7 +109,7 @@ sub test_sigs {
         my ($sig, $msg, $todo) = @{ $row };
         TODO: {
             local $TODO = $todo if $todo;
-            $test->($sig, $msg);
+            $test->($sig, $msg, $todo);
         }
     }
 }
