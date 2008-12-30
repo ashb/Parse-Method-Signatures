@@ -124,9 +124,7 @@ sub signature {
       }
     }
 
-    # Params can be sperarated by , or \n
-    while ($self->token->{type} eq ',' ||
-           $self->token->{type} eq "\n") {
+    while ($self->token->{type} eq ',') {
       $self->consume_token;
 
       ($param, $opts) = $self->param;
@@ -390,18 +388,14 @@ our %LEXTABLE = (
 sub next_token {
   my ($self, $data) = @_;
 
-  if ($$data =~ s/^(\s*(?:#.*?)?[\r\n]\s*)//s) {
-    return { type => "\n", literal => $1, orig => $1 }
-  }
-
   my $re = qr/^ (\s* (?:
-    ([(){},:=|!?\n]) |
+    ([(){},:=|!?]) |
     (
       [A-Za-z][a-zA-Z0-0_-]+
       (?:::[A-Za-z][a-zA-Z0-0_-]+)*
     ) |
     ([\$\%\@][_A-Za-z][a-zA-Z0-9_]*)
-  ) \s*) /x;
+  ) (?:\s*\#.*?[\r\n])?\s*) /x;
 
   # symbols in $2
   # class-name ish in $3

@@ -68,7 +68,7 @@ my @sigs = (
 );
 
 my @alternative = (
-    [q{($param1 # Foo bar
+    [q{($param1, # Foo bar
         $param2?)},             '($param1, $param2?)',     'comments in multiline'],
 );
 
