@@ -257,7 +257,7 @@ sub param {
     my ($code) = extract_codeblock(${$self->_input});
 
     # Text::Balanced *sets* $@. How horrible.
-    die "$@" if $@; 
+    die "$@" if $@;
 
     substr(${$self->_input}, 0, length($code), '');
     push @{$param->{constraints}}, $code;
@@ -309,7 +309,7 @@ sub _number_like {
                       # want to do it for them because of roundtripping. But maybe
                       # we need annotation nodes anyway?
                       )/x;
-  
+
   my $data = $self->_input;
 
   my ($num) = $$data =~ /$number_like/;
@@ -330,7 +330,7 @@ sub _quote_like {
 
   return if blessed $@ && $@->{error} =~ /^No quotelike operator found after prefix/;
 
-  die "$@" if $@; 
+  die "$@" if $@;
   return unless $quote[0];
 
   my $op = $quote[3] || $quote[4];
@@ -359,7 +359,7 @@ sub assert_token {
   if ($self->token->{type} eq $type) {
     return $self->consume_token;
   }
- 
+
   Carp::confess "$type required, found  '" .$self->token->{literal} . "'!";
 }
 
@@ -383,7 +383,7 @@ sub consume_token {
 
   die "No token to consume"
     unless @{$self->tokens};
-    
+
   return shift @{$self->tokens};
 }
 
@@ -422,9 +422,9 @@ sub next_token {
     }
 
     my $tc = $self->extract_tc($cls);
-    return { 
-      type => 'class', 
-      literal => $tc, 
+    return {
+      type => 'class',
+      literal => $tc,
       orig => $orig . substr($tc, length($cls))
     };
   }
@@ -493,7 +493,7 @@ Parse::Method::Signatures - Perl6 like method signature parser
 
 =head1 DESCRIPTION
 
-Inspired by L<Perl6::Signature> but streamlined to just support the subset 
+Inspired by L<Perl6::Signature> but streamlined to just support the subset
 deemed useful for L<TryCatch> and L<MooseX::Method::Signatures>.
 
 =head1 TODO
@@ -506,7 +506,7 @@ deemed useful for L<TryCatch> and L<MooseX::Method::Signatures>.
 
 =head1 METHODS
 
-There are only two public methods to this module, both of which should be 
+There are only two public methods to this module, both of which should be
 called as class methods.
 
 =head2 signature
@@ -518,7 +518,7 @@ error.
 
 =head2 param
 
-  my $param = Parse::Method::Signatures->param( 'Str $foo where { length($_) < 10 }') 
+  my $param = Parse::Method::Signatures->param( 'Str $foo where { length($_) < 10 }')
 
 Attempts to parse the specification for a single parameter. Returns value or
 dies on error.
@@ -530,7 +530,7 @@ Like Perl6::Signature, the parsing of certain constructs is currently only a
 successfully for certain complex cases. Patches/Failing tests welcome.
 
 Additionally, default value specifications are not evaluated which means that
-no such lexical or similar errors will not be produced by this module. 
+no such lexical or similar errors will not be produced by this module.
 Constant folding will also not be performed.
 
 =head1 AUTHOR
