@@ -9,8 +9,9 @@ use List::MoreUtils qw/part/;
 use namespace::clean -except => 'meta';
 
 has invocant => (
-    is => 'ro',
-    isa => Param,
+    is        => 'ro',
+    isa       => Param,
+    predicate => 'has_invocant',
 );
 
 has positional_params => (
