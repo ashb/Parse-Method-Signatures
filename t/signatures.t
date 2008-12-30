@@ -47,8 +47,6 @@ my @sigs = (
                                 'complex with default'],
     [q#(SomeClass $thing where { $_->can('stuff') }: Str $bar = "apan", Int :$baz = 42 where { $_ % 2 == 0 } where { $_ > 10 })#,
                                 'complex invocant, defaults and constraints'],
-    [q{($param1 # Foo bar
-        $param2?)},             'comments in multiline'],
     ['(@x)',                    'positional array'],
     ['($x, @y)',                'positinal scalar and array'],
     ['(%x)',                    'positinal hash'],
@@ -68,6 +66,11 @@ my @sigs = (
     ['(:foo({:$x, :$y, %r}))',  'named hash ref unpacking', 'TODO'],
 );
 
+my @alternative = (
+    [q{($param1 # Foo bar
+        $param2?)},             '($param1, $param2?)',     'comments in multiline'],
+);
+
 my @invalid = (
     ['($x?:)',                  'optional invocant'],
     ['($x?, $y)',               'required positional after optional one'],
@@ -84,7 +87,7 @@ my @invalid = (
     ['({$x, $y})',              'unpacking hash ref to something not named'],
 );
 
-plan tests => scalar @sigs * 3 + scalar @invalid;
+plan tests => scalar @sigs * 3 + scalar @alternative * 3 + scalar @invalid;
 
 test_sigs(sub {
     my ($input, $msg, $todo) = @_;
@@ -96,6 +99,14 @@ test_sigs(sub {
         is($sig->to_string, $input, $msg);
     }
 }, @sigs);
+
+for my $row (@alternative) {
+    my ($in, $out, $msg) = @{ $row };
+    my $sig;
+    lives_ok { $sig = Parse::Method::Signatures->signature($in) } $msg;
+    isa_ok($sig, 'Parse::Method::Signatures::Sig');
+    is($sig->to_string, $out, $msg);
+}
 
 test_sigs(sub {
     my ($sig, $msg) = @_;
