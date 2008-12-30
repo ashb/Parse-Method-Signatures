@@ -104,21 +104,25 @@ my @invalid = (
     ['(:$x! = "foo":)',         'default value for invocant is invalid'],
 );
 
-plan tests => scalar @sigs + scalar @alternative + scalar @invalid;
+plan tests => scalar @sigs * 3 + scalar @alternative + scalar @invalid;
 
 test_sigs(sub {
     my ($input, $msg, $todo) = @_;
     my $sig;
-    lives_and { 
-      isa_ok(Parse::Method::Signatures->signature($input), 'Parse::Method::Signatures::Sig', $msg)
+    lives_ok { 
+        $sig = Parse::Method::Signatures->signature($input);
     } $msg;
+    isa_ok($sig, 'Parse::Method::Signatures::Sig', $msg);
+    TODO: {
+        todo_skip $todo, 1 if $todo && !$sig;
+        is($sig->to_string, $input, $msg);
+    }
 }, @sigs);
 
 for my $row (@alternative) {
     my ($in, $out, $msg) = @{ $row };
-    my $sig;
     lives_and { 
-      is(Parse::Method::Signatures->signature($in)->to_string, $out, $msg)
+        is(Parse::Method::Signatures->signature($in)->to_string, $out, $msg)
     } $msg;
 }
 
