@@ -74,6 +74,8 @@ my @alternative = (
 
 my @invalid = (
     ['($x?:)',                  'optional invocant'],
+    ['(@x:)',                   'non-scalar invocant', 'TODO'],
+    ['(%x:)',                   'non-scalar invocant', 'TODO'],
     ['($x?, $y)',               'required positional after optional one'],
     ['(Int| $x)',               'invalid type alternation'],
     ['(|Int $x)',               'invalid type alternation'],
