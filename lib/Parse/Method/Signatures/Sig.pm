@@ -136,11 +136,7 @@ sub to_string {
         my @named = @{ $self->named_params };
         my $n = scalar @named - 1;
         for my $param (@named) {
-            $ret .= $param->to_string;
-
-            if ($self->named_param_is_required( $param->label )) {
-                $ret .= q{!};
-            }
+            $ret .= $param->to_string($self->named_param_is_required( $param->label ));
 
             if ($i < $n) {
                 $ret .= q{, };
