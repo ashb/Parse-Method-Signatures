@@ -75,7 +75,7 @@ sub named_param {
 
 sub _build__required_named_map {
     my ($self) = @_;
-    return { map { $self->named_param($_)->label => 1 } @{ $self->_required_named_map } };
+    return { map { $self->named_param($_)->label => 1 } @{ $self->required_named_params } };
 }
 
 sub named_param_is_required {
