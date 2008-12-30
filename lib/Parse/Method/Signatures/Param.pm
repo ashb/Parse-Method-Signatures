@@ -29,6 +29,43 @@ has default_value => (
     predicate => 'has_default_value',
 );
 
+sub _stringify_type_constraint {
+    my ($self) = @_;
+    return q{} unless $self->has_type_constraint;
+    return $self->type_constraint . q{ };
+}
+
+sub _stringify_variable_name {
+    my ($self, $required) = @_;
+    my $ret = $self->variable_name;
+    $ret .= '?' unless $required;
+    return $ret;
+}
+
+sub _stringify_default_value {
+    my ($self) = @_;
+    return q{} unless $self->has_default_value;
+    return q{ = } . $self->default_value;
+}
+
+sub _stringify_constraints {
+    my ($self) = @_;
+    return q{} unless $self->has_constraints;
+    return q{ } . join(q{ }, @{ $self->constraints });
+}
+
+sub to_string {
+    my ($self, $required) = @_;
+    my $ret = q{};
+
+    $ret .= $self->_stringify_type_constraint;
+    $ret .= $self->_stringify_variable_name($required);
+    $ret .= $self->_stringify_default_value;
+    $ret .= $self->_stringify_constraints;
+
+    return $ret;
+}
+
 __PACKAGE__->meta->make_immutable;
 
 1;

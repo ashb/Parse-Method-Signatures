@@ -19,6 +19,14 @@ sub _build_label {
     return substr($self->variable_name, 1);
 }
 
+sub _stringify_variable_name {
+    my ($self, $required) = @_;
+    my $ret = q{:};
+    $ret .= $self->variable_name;
+    $ret .= '!' if $required;
+    return $ret;
+}
+
 __PACKAGE__->meta->make_immutable;
 
 1;
