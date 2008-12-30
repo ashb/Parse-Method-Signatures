@@ -22,6 +22,7 @@ my @sigs = (
     ['(Str|Tuple[Int,Str] $x)', 'parameterized with alternative'],
     ['(:$x)',                   'optional named'],
     ['(:$x!)',                  'required named'],
+    ['(Str :$x)',               'named with type constraint'],
     ['($x, $y , :$z)',          'positional and named'],
     ['($x, $y?, :$z)',          'optional positional and named'],
     ['(:$a, :$b, :$c)',         'multiple named'],
