@@ -51,7 +51,7 @@ sub _stringify_default_value {
 sub _stringify_constraints {
     my ($self) = @_;
     return q{} unless $self->has_constraints;
-    return q{ } . join(q{ }, @{ $self->constraints });
+    return q{ where } . join(q{ where }, @{ $self->constraints });
 }
 
 sub to_string {
