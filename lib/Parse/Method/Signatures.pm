@@ -116,6 +116,7 @@ sub signature {
 
     $self->consume_token;
     ($param, $opts) = $self->param;
+
   }
 
   my $opt_pos_param;
@@ -144,7 +145,7 @@ sub signature {
       }
 
       push @$params, $param;
-      $opt_pos_param = $opt_pos_param || !$opts->{optional};
+      $opt_pos_param = $opt_pos_param || !$opts->{required};
       if ($opts->{required}) {
         if ($opts->{named}) {
           push @{ $args->{required_named_params} }, $param->label;
@@ -398,7 +399,7 @@ sub next_token {
       [A-Za-z][a-zA-Z0-0_-]+
       (?:::[A-Za-z][a-zA-Z0-0_-]+)*
     ) |
-    ([\$\%\@][_A-Za-z][a-zA-Z0-9_]*)
+    ([\$\%\@](?:[_A-Za-z][a-zA-Z0-9_]*)?) |
   ) (?:\s*\#.*?[\r\n])?\s*) /x;
 
   # symbols in $2

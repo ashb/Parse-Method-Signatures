@@ -14,7 +14,7 @@ use MooseX::Types -declare => [qw/
 
 subtype VariableName,
     as Str,
-    where { /^[\$@%][a-z_][a-z_\d]*$/i },
+    where { /^[\$@%](?:[a-z_][a-z_\d]*)?$/i },
     message { 'not a valid variable name' };
 
 subtype TypeConstraint,
