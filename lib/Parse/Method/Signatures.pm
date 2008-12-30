@@ -344,7 +344,7 @@ sub _variable_like {
   my $token = $self->token;
   if ($token->{type} eq 'var') {
     $self->consume_token;
-    return $token;
+    return $token->{literal};
   }
 }
 
