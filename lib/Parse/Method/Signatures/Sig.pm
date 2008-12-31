@@ -2,15 +2,15 @@ package Parse::Method::Signatures::Sig;
 
 use Moose;
 use MooseX::Types::Moose qw/ArrayRef HashRef Str Int Bool/;
-use aliased 'Parse::Method::Signatures::Param';
 use aliased 'Parse::Method::Signatures::Param::Named';
+use Parse::Method::Signatures::Types qw/Param/;
 use List::MoreUtils qw/part/;
 
 use namespace::clean -except => 'meta';
 
 has invocant => (
     is        => 'ro',
-    isa       => Param,
+    does      => Param,
     predicate => 'has_invocant',
 );
 

@@ -47,7 +47,7 @@ has 'signature_class' => (
 has 'param_class_positional' => (
     is      => 'ro',
     isa     => 'Str',
-    default => 'Parse::Method::Signatures::Param',
+    default => 'Parse::Method::Signatures::Param::Positional',
 );
 
 has 'param_class_named' => (

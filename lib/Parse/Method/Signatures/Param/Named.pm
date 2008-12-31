@@ -5,7 +5,7 @@ use MooseX::Types::Moose qw/Str/;
 
 use namespace::clean -except => 'meta';
 
-extends 'Parse::Method::Signatures::Param';
+extends 'Parse::Method::Signatures::Param::Positional';
 
 has label => (
     is         => 'ro',

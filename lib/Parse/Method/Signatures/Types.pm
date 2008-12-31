@@ -10,6 +10,7 @@ use namespace::clean;
 use MooseX::Types -declare => [qw/
     VariableName
     TypeConstraint
+    Param
 /];
 
 subtype VariableName,
@@ -23,5 +24,7 @@ subtype TypeConstraint,
 coerce TypeConstraint,
     from Str,
     via { find_or_parse_type_constraint($_) };
+
+role_type Param, { role => 'Parse::Method::Signatures::Param' };
 
 1;
