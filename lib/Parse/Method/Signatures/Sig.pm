@@ -106,7 +106,7 @@ sub to_string {
     my $ret = q{(};
 
     if ($self->has_invocant) {
-        $ret .= $self->invocant->to_string(1);
+        $ret .= $self->invocant->to_string;
         $ret .= q{:};
 
         if ($self->has_positional_params || $self->has_named_params) {
@@ -119,7 +119,7 @@ sub to_string {
         my @positionals = @{ $self->positional_params };
         my $n = scalar @positionals - 1;
         for my $param (@positionals) {
-            $ret .= $param->to_string($i < $self->required_positional_params);
+            $ret .= $param->to_string;
 
             if ($i < $n) {
                 $ret .= q{, };
@@ -136,7 +136,7 @@ sub to_string {
         my @named = @{ $self->named_params };
         my $n = scalar @named - 1;
         for my $param (@named) {
-            $ret .= $param->to_string($self->named_param_is_required( $param->label ));
+            $ret .= $param->to_string;
 
             if ($i < $n) {
                 $ret .= q{, };

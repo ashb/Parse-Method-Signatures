@@ -72,8 +72,8 @@ sub _build__input {
 }
 
 sub create_param {
-    my ($self, $args, $opts) = @_;
-    my $param_class = $opts->{named}
+    my ($self, $args) = @_;
+    my $param_class = delete $args->{named}
         ? $self->param_class_named
         : $self->param_class_positional;
     return $param_class->new($args);
@@ -102,30 +102,29 @@ sub signature {
   };
   my $params = [];
 
-  my ($param, $opts) = $self->param;
+  my $param = $self->param;
 
   if ($param && $self->token->{type} eq ':') {
     # That param was actualy the invocant
     $args->{invocant} = $param;
     die "Invocant cannot be optional"
-      if !$opts->{required};
+      if !$param->required;
     die "Invocant cannot be named"
-      if $opts->{named};
+      if $param->isa($self->param_class_named);
     die "Invocant cannot have a default value"
       if $param->has_default_value;
 
     $self->consume_token;
-    ($param, $opts) = $self->param;
+    $param = $self->param;
 
   }
 
-  my $opt_pos_param;
   if ($param) {
     push @$params, $param;
 
-    $opt_pos_param = $opt_pos_param || !$opts->{required};
-    if ($opts->{required}) {
-      if ($opts->{named}) {
+    my $opt_pos_param = !$param->required;
+    if ($param->required) {
+      if ($param->isa($self->param_class_named)) {
         push @{ $args->{required_named_params} }, $param->label;
       } else {
         $args->{required_positional_params}++;
@@ -135,25 +134,30 @@ sub signature {
     while ($self->token->{type} eq ',') {
       $self->consume_token;
 
-      ($param, $opts) = $self->param;
+      $param = $self->param;
       die "parameter expected"
         if !$param;
 
-      if (!$opts->{named} && $opts->{required} && $opt_pos_param) {
+      if (!$param->isa($self->param_class_named) && 
+          $param->required && $opt_pos_param) {
         die "Invalid: Required positional param '"
           . $param->{variable_name} . "' found after optional one.\n";
       }
 
       push @$params, $param;
-      $opt_pos_param = $opt_pos_param || !$opts->{required};
-      if ($opts->{required}) {
-        if ($opts->{named}) {
+      $opt_pos_param = $opt_pos_param || !$param->required;
+      if ($param->required) {
+        if ($param->isa($self->param_class_named)) {
           push @{ $args->{required_named_params} }, $param->label;
         } else {
           $args->{required_positional_params}++;
         }
       }
     }
+  } elsif ($self->token->{type} eq '[') {
+    push @$params, $self->unpacked_array;
+  } elsif ($self->token->{type} eq '{') {
+    push @$params, $self->unpacked_hash;
   }
 
   $self->assert_token(')');
@@ -164,6 +168,20 @@ sub signature {
   return wantarray ? ($sig, $self->remaining_input) : $sig;
 }
 
+
+sub unpacked_array {
+  my ($self) = @_;
+
+  $self->assert_token('[');
+  $self->assert_token(']');
+}
+
+sub unpacked_hash {
+  my ($self) = @_;
+
+  $self->assert_token('{');
+  $self->assert_token('}');
+}
 
 # param: classishTCName?
 #        var_name
@@ -188,7 +206,6 @@ sub param {
   }
 
   my $param = {};
-  my $options = {};
   my $consumed = 0;
 
   my $token = $self->token;
@@ -200,7 +217,7 @@ sub param {
   }
 
   if ($token->{type} eq ':') {
-    $options->{named} = 1;
+    $param->{named} = 1;
     $self->consume_token;
     $token = $self->token;
     $consumed = 1;
@@ -218,7 +235,7 @@ sub param {
   }
 
   # positionals are required by default, named params aren't
-  $options->{required} = !$options->{named};
+  $param->{required} = !$param->{named};
 
   return if (!$consumed && $token->{type} ne 'var');
 
@@ -231,11 +248,11 @@ sub param {
   $token = $self->token;
 
   if ($token->{type} eq '?') {
-    $options->{required} = 0;
+    $param->{required} = 0;
     $self->consume_token;
     $token = $self->token;
   } elsif ($token->{type} eq '!') {
-    $options->{required} = 1;
+    $param->{required} = 1;
     $self->consume_token;
     $token = $self->token;
   }
@@ -268,7 +285,7 @@ sub param {
   if ($class_meth) {
     return wantarray ? ($param, $self->remaining_input) : $param;
   } else {
-    return ($self->create_param($param, $options), $options);
+    return $self->create_param($param);
   }
 }
 

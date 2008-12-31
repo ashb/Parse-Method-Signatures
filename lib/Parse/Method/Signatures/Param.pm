@@ -28,6 +28,12 @@ has default_value => (
     predicate => 'has_default_value',
 );
 
+has required => (
+    is       => 'ro',
+    isa      => 'Bool',
+    required => 1
+);
+
 sub _stringify_type_constraint {
     my ($self) = @_;
     return q{} unless $self->has_type_constraint;
@@ -35,9 +41,9 @@ sub _stringify_type_constraint {
 }
 
 sub _stringify_variable_name {
-    my ($self, $required) = @_;
+    my ($self) = @_;
     my $ret = $self->variable_name;
-    $ret .= '?' unless $required;
+    $ret .= '?' unless $self->required;
     return $ret;
 }
 
@@ -54,11 +60,11 @@ sub _stringify_constraints {
 }
 
 sub to_string {
-    my ($self, $required) = @_;
+    my ($self) = @_;
     my $ret = q{};
 
     $ret .= $self->_stringify_type_constraint;
-    $ret .= $self->_stringify_variable_name($required);
+    $ret .= $self->_stringify_variable_name();
     $ret .= $self->_stringify_default_value;
     $ret .= $self->_stringify_constraints;
 

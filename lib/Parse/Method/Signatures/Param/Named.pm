@@ -25,7 +25,7 @@ sub _build_label {
 }
 
 sub _stringify_variable_name {
-    my ($self, $required) = @_;
+    my ($self) = @_;
     my $ret = q{:};
     my ($before, $after) = (q{}) x 2;
 
@@ -36,7 +36,7 @@ sub _stringify_variable_name {
 
     $ret .= $before . $self->variable_name . $after;
 
-    $ret .= '!' if $required;
+    $ret .= '!' if $self->required;
     return $ret;
 }
 
