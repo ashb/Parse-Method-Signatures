@@ -30,6 +30,7 @@ has named_params => (
     is        => 'ro',
     isa       => ArrayRef[Param],
     predicate => 'has_named_params',
+    requires  => 1
 );
 
 has _named_map => (

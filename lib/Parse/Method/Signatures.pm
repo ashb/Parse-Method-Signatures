@@ -8,6 +8,9 @@ use Text::Balanced qw(
   extract_quotelike
 );
 
+use Parse::Method::Signatures::Sig::Unpacked::Array;
+use Parse::Method::Signatures::Sig::Unpacked::Hash;
+
 use namespace::clean -except => 'meta';
 
 our $VERSION = 1.000000;
@@ -56,6 +59,18 @@ has 'param_class_named' => (
     default => 'Parse::Method::Signatures::Param::Named',
 );
 
+has 'param_class_unpacked_array' => (
+    is      => 'ro',
+    isa     => 'Str',
+    default => 'Parse::Method::Signatures::Sig::Unpacked::Array',
+);
+
+has 'param_class_unpacked_hash' => (
+    is      => 'ro',
+    isa     => 'Str',
+    default => 'Parse::Method::Signatures::Sig::Unpacked::Hash',
+);
+
 sub BUILD {
     my ($self) = @_;
 
@@ -74,7 +89,12 @@ sub _build__input {
 
 sub create_param {
     my ($self, $args) = @_;
-    my $param_class = delete $args->{named}
+
+    my $param_class = $args->{positional_params}
+        ? $self->param_class_unpacked_array
+        : $args->{named_params}
+        ? $self->param_class_unpacked_hash
+        : delete $args->{named}
         ? $self->param_class_named
         : $self->param_class_positional;
     return $param_class->new($args);
@@ -114,6 +134,10 @@ sub signature {
       if $param->isa($self->param_class_named);
     die "Invocant cannot have a default value"
       if $param->has_default_value;
+
+    die "Invocant must be a simple scalar"
+      if $param->isa('Parse::Method::Signatures::Sig') ||
+         $param->sigil ne '$';
 
     $self->consume_token;
     $param = $self->param;
@@ -155,10 +179,6 @@ sub signature {
         }
       }
     }
-  } elsif ($self->token->{type} eq '[') {
-    push @$params, $self->unpacked_array;
-  } elsif ($self->token->{type} eq '{') {
-    push @$params, $self->unpacked_hash;
   }
 
   $self->assert_token(')');
@@ -174,27 +194,68 @@ sub unpacked_array {
   my ($self) = @_;
 
   $self->assert_token('[');
+  my $params = [];
+
+  while ($self->token->{type} ne ']') {
+    my $param = $self->param
+      or $self->assert_token('var'); # not what we are asserting, but should give a useful error message
+
+    die "Cannot have named parameters in an unpacked-array"
+      if $param->isa($self->param_class_named);
+
+    die "Cannot have optional parameters in an unpacked-array"
+      if !$param->required;
+
+    push @$params, $param;
+
+    last if ($self->token->{type} eq ']');
+    $self->assert_token(',');
+  }
   $self->assert_token(']');
+
+  return $params;
 }
 
 sub unpacked_hash {
-  my ($self) = @_;
+  my ($self, $label) = @_;
 
   $self->assert_token('{');
+  my $params = [];
+
+  while ($self->token->{type} ne '}') {
+    my $param = $self->param
+      or $self->assert_token('var'); # not what we are asserting, but should give a useful error message
+
+    $DB::single = 1;
+    die "Cannot have positional parameters in an unpacked-hash: " . $param->to_string
+      if !$param->isa($self->param_class_named) &&
+          $param->isa($self->param_class_positional) && $param->variable_name =~ /^\$/;
+
+    push @$params, $param;
+
+    last if ($self->token->{type} eq '}');
+    $self->assert_token(',');
+  }
   $self->assert_token('}');
+
+  return $params;
 }
 
 # param: classishTCName?
-#        var_name
-#        (OPTIONAL|REQUIRED)
+#        var
+#        (OPTIONAL|REQUIRED)?
 #        default?
 #        where*
 #
 # where: WHERE <code block>
 #
-# var_name : COLON label '(' var ')' # label is classish, with only /a-z0-9_/i allowed
-#          | COLON VAR
-#          | VAR
+# var : COLON label '(' var_or_unpack ')' # label is classish, with only /a-z0-9_/i allowed
+#     | COLON VAR
+#     | var_or_unpack
+#
+# var_or_unpack : '[' param* ']' # should all be required + un-named
+#               | '{' param* '}' # Should all be named
+#               | VAR
 #
 # OPTIONAL: '?'
 # REQUIRED: '!'
@@ -226,21 +287,39 @@ sub param {
     # Probably a label
     if ($token->{type} eq 'class') {
       $param->{label} = $self->consume_token->{literal};
-      $token = $self->token;
 
       die "label required, class or type constraint found"
         if $param->{label} =~ /[^a-zA-Z0-9_]/;
 
       $self->assert_token('(');
+      $token = $self->token;
     }
   }
 
   # positionals are required by default, named params aren't
   $param->{required} = !$param->{named};
 
-  return if (!$consumed && $token->{type} ne 'var');
+  #use Data::Dumper; warn Dumper($param, $token);
+  if ($token->{type} eq '[') {
+    die "Label required for named non-scalar param"
+      if $param->{named} && !defined $param->{label};
 
-  $param->{variable_name} = $self->assert_token('var')->{literal};
+    $param->{positional_params} = $self->unpacked_array;
+  } elsif ($token->{type} eq '{') {
+    die "Label required for named non-scalar param"
+      if $param->{named} && !defined $param->{label};
+
+    $param->{named_params} = $self->unpacked_hash;
+  } elsif ($consumed || $token->{type} eq 'var') {
+    $param->{variable_name} = $self->assert_token('var')->{literal};
+
+    die "Label required for named non-scalar param"
+      if $param->{variable_name} !~ /^\$/ && 
+         $param->{named} && !defined $param->{label};
+    
+  } else {
+    return;
+  }
 
   if (defined $param->{label}) {
     $self->assert_token(')');

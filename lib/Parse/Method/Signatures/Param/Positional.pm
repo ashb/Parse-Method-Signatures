@@ -25,16 +25,16 @@ has constraints => (
     predicate => 'has_constraints',
 );
 
-has required => (
-    is       => 'ro',
-    isa      => 'Bool',
-    required => 1
-);
-
 has default_value => (
     is        => 'ro',
     isa       => Str,
     predicate => 'has_default_value',
+);
+
+has sigil => (
+    is         => 'ro',
+    isa        => Str,
+    lazy_build => 1
 );
 
 
@@ -73,6 +73,8 @@ sub _stringify_default_value {
     return q{} unless $self->has_default_value;
     return q{ = } . $self->default_value;
 }
+
+sub _build_sigil { substr($_[0]->variable_name, 0, 1) }
 
 __PACKAGE__->meta->make_immutable;
 
