@@ -128,10 +128,10 @@ sub signature {
   if ($param && $self->token->{type} eq ':') {
     # That param was actualy the invocant
     $args->{invocant} = $param;
-    die "Invocant cannot be optional"
-      if !$param->required;
     die "Invocant cannot be named"
       if $param->isa($self->param_class_named);
+    die "Invocant cannot be optional"
+      if !$param->required;
     die "Invocant cannot have a default value"
       if $param->has_default_value;
 
@@ -147,7 +147,10 @@ sub signature {
   if ($param) {
     push @$params, $param;
 
+    # I dont like this can check really.
+    my $greedy = $param->can('sigil') && $param->sigil ne '$' ? $param : undef;
     my $opt_pos_param = !$param->required;
+
     if ($param->required) {
       if ($param->isa($self->param_class_named)) {
         push @{ $args->{required_named_params} }, $param->label;
@@ -163,21 +166,29 @@ sub signature {
       die "parameter expected"
         if !$param;
 
-      if (!$param->isa($self->param_class_named) && 
-          $param->required && $opt_pos_param) {
-        die "Invalid: Required positional param '"
-          . $param->{variable_name} . "' found after optional one.\n";
+      my $is_named = $param->isa($self->param_class_named);
+      if (!$is_named) {
+        if ($param->required && $opt_pos_param) {
+          die "Invalid: Required positional param '"
+            . $param->variable_name . "' found after optional one.\n";
+        }
+        if ($greedy) {
+          die "Invalid: Un-named parameter '" . $param->variable_name
+            . "' after greedy '" 
+            . $greedy->variable_name . "'\n";
+        }
       }
 
       push @$params, $param;
       $opt_pos_param = $opt_pos_param || !$param->required;
       if ($param->required) {
-        if ($param->isa($self->param_class_named)) {
+        if ($is_named) {
           push @{ $args->{required_named_params} }, $param->label;
         } else {
           $args->{required_positional_params}++;
         }
       }
+      $greedy = $param->can('sigil') && $param->sigil ne '$' ? $param : undef;
     }
   }
 

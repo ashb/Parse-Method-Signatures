@@ -85,10 +85,10 @@ my @invalid = (
     ['($x?, $y)',               'required positional after optional one'],
     ['(Int| $x)',               'invalid type alternation'],
     ['(|Int $x)',               'invalid type alternation'],
-    ['(@x, $y)',                'scalar after array', 'TODO'],
-    ['(@x, @y)',                'multiple arrays', 'TODO'],
-    ['(%x, %y)',                'multiple hashes', 'TODO'],
-    ['(@, $x)',                 'scalar after array placeholder', 'TODO'],
+    ['(@x, $y)',                'scalar after array'],
+    ['(@x, @y)',                'multiple arrays'],
+    ['(%x, %y)',                'multiple hashes'],
+    ['(@, $x)',                 'scalar after array placeholder'],
     ['(:@x)',                   'named array'],
     ['(:%x)',                   'named hash'],
     ['(:@)',                    'named array placeholder'],
@@ -101,7 +101,7 @@ my @invalid = (
     ['($foo = `pwd`)',          'invalid quote op'],
     ['($foo = "pwd\')',         'unbalanced quotes'],
     ['(:$x:)',                  'named invocant is invalid'],
-    ['(:$x! = "foo":)',         'default value for invocant is invalid'],
+    ['($x! = "foo":)',          'default value for invocant is invalid'],
 );
 
 plan tests => scalar @sigs * 3 + scalar @alternative + scalar @invalid;
@@ -129,6 +129,7 @@ for my $row (@alternative) {
 test_sigs(sub {
     my ($sig, $msg) = @_;
     dies_ok { Parse::Method::Signatures->signature($sig) } $msg;
+    warn $@;
 }, @invalid);
 
 sub test_sigs {
