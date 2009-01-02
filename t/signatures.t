@@ -129,7 +129,6 @@ for my $row (@alternative) {
 test_sigs(sub {
     my ($sig, $msg) = @_;
     dies_ok { Parse::Method::Signatures->signature($sig) } $msg;
-    warn $@;
 }, @invalid);
 
 sub test_sigs {
