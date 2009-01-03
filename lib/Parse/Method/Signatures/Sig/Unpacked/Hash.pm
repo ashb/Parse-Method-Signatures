@@ -1,7 +1,7 @@
 package Parse::Method::Signatures::Sig::Unpacked::Hash;
 
 use Moose;
-use MooseX::Types::Moose qw/Str Maybe/;
+use MooseX::Types::Moose qw/Str/;
 
 use namespace::clean -except => 'meta';
 
@@ -12,7 +12,7 @@ has '+positional_params' => ( default => sub { [] } );
 
 has label => (
     is        => 'ro',
-    isa       => Maybe[Str],
+    isa       => Str,
     predicate => 'has_label'
 );
 
