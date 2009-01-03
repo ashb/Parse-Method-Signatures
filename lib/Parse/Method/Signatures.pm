@@ -117,10 +117,7 @@ sub signature {
 
   $self->assert_token('(');
 
-  my $args = {
-    required_positional_params => 0,
-    required_named_params => [],
-  };
+  my $args = {};
   my $params = [];
 
   my $param = $self->param;
@@ -151,14 +148,6 @@ sub signature {
     my $greedy = $param->can('sigil') && $param->sigil ne '$' ? $param : undef;
     my $opt_pos_param = !$param->required;
 
-    if ($param->required) {
-      if ($param->isa($self->param_class_named)) {
-        push @{ $args->{required_named_params} }, $param->label;
-      } else {
-        $args->{required_positional_params}++;
-      }
-    }
-
     while ($self->token->{type} eq ',') {
       $self->consume_token;
 
@@ -181,13 +170,6 @@ sub signature {
 
       push @$params, $param;
       $opt_pos_param = $opt_pos_param || !$param->required;
-      if ($param->required) {
-        if ($is_named) {
-          push @{ $args->{required_named_params} }, $param->label;
-        } else {
-          $args->{required_positional_params}++;
-        }
-      }
       $greedy = $param->can('sigil') && $param->sigil ne '$' ? $param : undef;
     }
   }

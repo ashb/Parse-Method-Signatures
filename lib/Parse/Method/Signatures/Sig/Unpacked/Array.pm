@@ -8,7 +8,6 @@ use namespace::clean -except => 'meta';
 extends 'Parse::Method::Signatures::Sig';
 with 'Parse::Method::Signatures::Param';
 
-has '+required_named_params' => ( default => sub { [] } );
 has '+named_params' => ( default => sub { [] } );
 
 has label => (
@@ -16,15 +15,6 @@ has label => (
     isa       => Maybe[Str],
     predicate => 'has_label'
 );
-
-override BUILDARGS => sub {
-  my $args = super();
-
-  $args->{required_positional_params} = scalar @{$args->{positional_params}}
-    unless exists ($args->{required_positional_params});
-
-  return $args;
-};
 
 sub to_string {
   my ($self) = @_;
