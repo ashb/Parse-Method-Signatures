@@ -9,6 +9,7 @@ all_from 'lib/Parse/Method/Signatures.pm';
 requires 'aliased';
 requires 'List::MoreUtils';
 requires 'Moose';
+requires 'MooseX::Traits';
 requires 'MooseX::Types';
 requires 'MooseX::Types::Moose';
 requires 'namespace::clean';
