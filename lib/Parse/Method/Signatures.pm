@@ -243,7 +243,7 @@ sub param {
 
   my $token = $self->token;
   if ($token->{type} eq 'class') {
-    $param->{type_constraint} = $token->{literal};
+    $param->{type_constraints} = [split q{\|}, $token->{literal}];
     $self->consume_token;
     $token = $self->token;
     $consumed = 1;

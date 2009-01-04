@@ -2,7 +2,6 @@ package Parse::Method::Signatures::Param;
 
 use Moose;
 use MooseX::Types::Moose qw/Bool Str ArrayRef/;
-use Parse::Method::Signatures::Types qw/TypeConstraint/;
 
 use namespace::clean -except => 'meta';
 
@@ -20,10 +19,10 @@ has sigil => (
     required => 1,
 );
 
-has type_constraint => (
+has type_constraints => (
     is        => 'ro',
-    isa       => TypeConstraint,
-    predicate => 'has_type_constraint',
+    isa       => ArrayRef[Str],
+    predicate => 'has_type_constraints',
 );
 
 has default_value => (
@@ -42,10 +41,10 @@ has '+_trait_namespace' => (
     default => 'Parse::Method::Signatures::Param',
 );
 
-sub _stringify_type_constraint {
+sub _stringify_type_constraints {
     my ($self) = @_;
-    return $self->has_type_constraint
-        ? $self->type_constraint . q{ }
+    return $self->has_type_constraints
+        ? join(q{|}, @{ $self->type_constraints }) . q{ }
         : q{};
 }
 
@@ -66,7 +65,7 @@ sub to_string {
     my ($self) = @_;
     my $ret = q{};
 
-    $ret .= $self->_stringify_type_constraint;
+    $ret .= $self->_stringify_type_constraints;
     $ret .= $self->_stringify_variable_name;
     $ret .= $self->_stringify_required;
     $ret .= $self->_stringify_default_value;
