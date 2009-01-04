@@ -18,7 +18,7 @@ my @sigs = (
     ['(Int $x, Str $y)',        'multiple typed positionals'],
     ['(Animal|Human $affe)',    'type constraint alternative'],
     ['(Some::Class $x)',        'type constraint with colon'],
-    ['(Tuple[Int,Str] $x)',     'parameterized types'], 
+    ['(Tuple[Int,Str] $x)',     'parameterized types'],
     ['(Str|Tuple[Int,Str] $x)', 'parameterized with alternative'],
     ['($: $x, $y, $z)',         'dummy invocant'],
     ['($, $, $x)',              'dummy positionals'],
@@ -76,6 +76,7 @@ my @alternative = (
         $param2?)},             '($param1, $param2?)',     'comments in multiline'],
     ['(:$x = "foo")',           '(:$x = "foo")',           'default value stringifies okay'],
     ['($self: $moo)',           '($self: $moo)',           'invocant and positional'],
+    ['(Animal | Human $affe)',  '(Animal|Human $affe)',    'type constraint alternative with whitespace'],
 );
 
 my @invalid = (
@@ -109,7 +110,7 @@ plan tests => scalar @sigs * 3 + scalar @alternative + scalar @invalid;
 test_sigs(sub {
     my ($input, $msg, $todo) = @_;
     my $sig;
-    lives_ok { 
+    lives_ok {
         $sig = Parse::Method::Signatures->signature($input);
     } $msg;
     isa_ok($sig, 'Parse::Method::Signatures::Sig', $msg);
@@ -121,7 +122,7 @@ test_sigs(sub {
 
 for my $row (@alternative) {
     my ($in, $out, $msg) = @{ $row };
-    lives_and { 
+    lives_and {
         is(Parse::Method::Signatures->signature($in)->to_string, $out, $msg)
     } $msg;
 }
