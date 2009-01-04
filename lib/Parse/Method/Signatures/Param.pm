@@ -20,9 +20,10 @@ has sigil => (
 );
 
 has type_constraints => (
-    is        => 'ro',
-    isa       => ArrayRef[Str],
-    predicate => 'has_type_constraints',
+    is         => 'ro',
+    isa        => ArrayRef [Str],
+    predicate  => 'has_type_constraints',
+    auto_deref => 1,
 );
 
 has default_value => (
@@ -32,9 +33,10 @@ has default_value => (
 );
 
 has constraints => (
-    is        => 'ro',
-    isa       => ArrayRef[Str],
-    predicate => 'has_constraints',
+    is         => 'ro',
+    isa        => ArrayRef [Str],
+    predicate  => 'has_constraints',
+    auto_deref => 1,
 );
 
 has '+_trait_namespace' => (
@@ -44,7 +46,7 @@ has '+_trait_namespace' => (
 sub _stringify_type_constraints {
     my ($self) = @_;
     return $self->has_type_constraints
-        ? join(q{|}, @{ $self->type_constraints }) . q{ }
+        ? join(q{|}, $self->type_constraints) . q{ }
         : q{};
 }
 
@@ -58,7 +60,7 @@ sub _stringify_default_value {
 sub _stringify_constraints {
     my ($self) = @_;
     return q{} unless $self->has_constraints;
-    return q{ where } . join(q{ where }, @{ $self->constraints });
+    return q{ where } . join(q{ where }, $self->constraints);
 }
 
 sub to_string {
