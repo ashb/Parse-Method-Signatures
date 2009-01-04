@@ -45,7 +45,7 @@ override BUILDARGS => sub {
     my $args = super();
 
     if (my $params = delete $args->{params}) {
-        my ($positional, $named) = part { $_->isa(NamedParam) } @{ $params };
+        my ($positional, $named) = part { NamedParam->check($_) ? 1 : 0 } @{ $params };
         $_ ||= [] for $positional, $named;
         @{ $args }{qw/positional_params named_params/} = ($positional, $named);
     }
