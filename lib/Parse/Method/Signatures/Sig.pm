@@ -1,9 +1,8 @@
 package Parse::Method::Signatures::Sig;
 
 use Moose;
-use MooseX::Types::Moose qw/ArrayRef HashRef Str Int Bool/;
-use aliased 'Parse::Method::Signatures::Param::Named';
-use Parse::Method::Signatures::Types qw/Param/;
+use MooseX::Types::Moose qw/HashRef/;
+use Parse::Method::Signatures::Types qw/Param ParamCollection NamedParam/;
 use List::MoreUtils qw/part/;
 
 use namespace::clean -except => 'meta';
@@ -14,17 +13,26 @@ has invocant => (
     predicate => 'has_invocant',
 );
 
-has positional_params => (
+has _positional_params => (
     is        => 'ro',
-    isa       => ArrayRef[Param],
+    isa       => ParamCollection,
+    init_arg  => 'positional_params',
     predicate => 'has_positional_params',
+    coerce    => 1,
+    handles   => {
+        positional_params => 'params',
+    },
 );
 
-has named_params => (
+has _named_params => (
     is        => 'ro',
-    isa       => ArrayRef[Param],
+    isa       => ParamCollection,
+    init_arg  => 'named_params',
     predicate => 'has_named_params',
-    requires  => 1
+    coerce    => 1,
+    handles   => {
+        named_params => 'params',
+    },
 );
 
 has _named_map => (
@@ -33,17 +41,11 @@ has _named_map => (
     lazy_build => 1,
 );
 
-has _required_named_map => (
-    is         => 'ro',
-    isa        => HashRef[Bool],
-    lazy_build => 1,
-);
-
 override BUILDARGS => sub {
     my $args = super();
 
     if (my $params = delete $args->{params}) {
-        my ($positional, $named) = part { $_->isa(Named) } @{ $params };
+        my ($positional, $named) = part { $_->isa(NamedParam) } @{ $params };
         $_ ||= [] for $positional, $named;
         @{ $args }{qw/positional_params named_params/} = ($positional, $named);
     }
@@ -84,6 +86,8 @@ sub to_string {
     my ($self) = @_;
     my $ret = q{(};
 
+#    warn $self->dump;
+
     if ($self->has_invocant) {
         $ret .= $self->invocant->to_string;
         $ret .= q{:};
@@ -93,40 +97,11 @@ sub to_string {
         }
     }
 
-    {
-        my $i = 0;
-        my @positionals = @{ $self->positional_params };
-        my $n = scalar @positionals - 1;
-        for my $param (@positionals) {
-            $ret .= $param->to_string;
-
-            if ($i < $n) {
-                $ret .= q{, };
-            }
-
-            $i++;
-        }
-    }
-
+    $ret .= $self->_positional_params->to_string;
     $ret .= q{, } if $self->has_positional_params && $self->has_named_params;
-
-    {
-        my $i = 0;
-        my @named = @{ $self->named_params };
-        my $n = scalar @named - 1;
-        for my $param (@named) {
-            $ret .= $param->to_string;
-
-            if ($i < $n) {
-                $ret .= q{, };
-            }
-
-            $i++;
-        }
-    }
+    $ret .= $self->_named_params->to_string;
 
     $ret .= q{)};
-
     return $ret;
 }
 

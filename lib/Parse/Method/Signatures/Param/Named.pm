@@ -1,11 +1,9 @@
 package Parse::Method::Signatures::Param::Named;
 
-use Moose;
+use Moose::Role;
 use MooseX::Types::Moose qw/Str/;
 
 use namespace::clean -except => 'meta';
-
-extends 'Parse::Method::Signatures::Param::Positional';
 
 has label => (
     is         => 'ro',
@@ -24,22 +22,27 @@ sub _build_label {
     return $self->_label_from_variable_name;
 }
 
-sub _stringify_variable_name {
+sub _stringify_required {
+    my ($self) = @_;
+    return $self->required ? q{!} : q{};
+}
+
+around _stringify_variable_name => sub {
+    my $orig = shift;
     my ($self) = @_;
     my $ret = q{:};
     my ($before, $after) = (q{}) x 2;
 
-    if ($self->label ne $self->_label_from_variable_name) {
+    my $implicit_label = $self->_label_from_variable_name if $self->can('variable_name');
+
+    if (!$implicit_label || $self->label ne $implicit_label) {
         $before = $self->label . q{(};
         $after  = q{)};
     }
 
-    $ret .= $before . $self->variable_name . $after;
+    $ret .= $before . $orig->(@_) . $after;
 
-    $ret .= '!' if $self->required;
     return $ret;
-}
-
-__PACKAGE__->meta->make_immutable;
+};
 
 1;

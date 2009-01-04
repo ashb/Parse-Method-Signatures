@@ -8,8 +8,8 @@ use Text::Balanced qw(
   extract_quotelike
 );
 
-use Parse::Method::Signatures::Sig::Unpacked::Array;
-use Parse::Method::Signatures::Sig::Unpacked::Hash;
+use Parse::Method::Signatures::ParamCollection;
+use Parse::Method::Signatures::Types qw/PositionalParam NamedParam UnpackedParam/;
 
 use namespace::clean -except => 'meta';
 
@@ -47,28 +47,10 @@ has 'signature_class' => (
     default => 'Parse::Method::Signatures::Sig',
 );
 
-has 'param_class_positional' => (
+has 'param_class' => (
     is      => 'ro',
     isa     => 'Str',
-    default => 'Parse::Method::Signatures::Param::Positional',
-);
-
-has 'param_class_named' => (
-    is      => 'ro',
-    isa     => 'Str',
-    default => 'Parse::Method::Signatures::Param::Named',
-);
-
-has 'param_class_unpacked_array' => (
-    is      => 'ro',
-    isa     => 'Str',
-    default => 'Parse::Method::Signatures::Sig::Unpacked::Array',
-);
-
-has 'param_class_unpacked_hash' => (
-    is      => 'ro',
-    isa     => 'Str',
-    default => 'Parse::Method::Signatures::Sig::Unpacked::Hash',
+    default => 'Parse::Method::Signatures::Param',
 );
 
 sub BUILD {
@@ -77,8 +59,7 @@ sub BUILD {
     Class::MOP::load_class($_)
         for map { $self->$_ } qw/
             signature_class
-            param_class_positional
-            param_class_named
+            param_class
         /;
 }
 
@@ -90,14 +71,14 @@ sub _build__input {
 sub create_param {
     my ($self, $args) = @_;
 
-    my $param_class = $args->{positional_params}
-        ? $self->param_class_unpacked_array
-        : $args->{named_params}
-        ? $self->param_class_unpacked_hash
-        : delete $args->{named}
-        ? $self->param_class_named
-        : $self->param_class_positional;
-    return $param_class->new($args);
+    my @traits;
+    push @traits, $args->{ variable_name } ? 'Bindable' : 'Placeholder'
+        if !exists $args->{unpacking};
+    push @traits, $args->{ named         } ? 'Named'    : 'Positional';
+    push @traits, 'Unpacked::' . $args->{unpacking}
+        if exists $args->{unpacking};
+
+    return $self->param_class->new_with_traits(traits => \@traits, %{ $args });
 }
 
 # signature: O_PAREN
@@ -126,15 +107,14 @@ sub signature {
     # That param was actualy the invocant
     $args->{invocant} = $param;
     die "Invocant cannot be named"
-      if $param->isa($self->param_class_named);
+      if NamedParam->check($param);
     die "Invocant cannot be optional"
       if !$param->required;
     die "Invocant cannot have a default value"
       if $param->has_default_value;
 
     die "Invocant must be a simple scalar"
-      if $param->isa('Parse::Method::Signatures::Sig') ||
-         $param->sigil ne '$';
+      if UnpackedParam->check($param) || $param->sigil ne '$';
 
     $self->consume_token;
     $param = $self->param;
@@ -144,8 +124,7 @@ sub signature {
   if ($param) {
     push @$params, $param;
 
-    # I dont like this can check really.
-    my $greedy = $param->can('sigil') && $param->sigil ne '$' ? $param : undef;
+    my $greedy = $param->sigil ne '$' ? $param : undef;
     my $opt_pos_param = !$param->required;
 
     while ($self->token->{type} eq ',') {
@@ -155,7 +134,7 @@ sub signature {
       die "parameter expected"
         if !$param;
 
-      my $is_named = $param->isa($self->param_class_named);
+      my $is_named = NamedParam->check($param);
       if (!$is_named) {
         if ($param->required && $opt_pos_param) {
           die "Invalid: Required positional param '"
@@ -170,7 +149,7 @@ sub signature {
 
       push @$params, $param;
       $opt_pos_param = $opt_pos_param || !$param->required;
-      $greedy = $param->can('sigil') && $param->sigil ne '$' ? $param : undef;
+      $greedy = $param->sigil ne '$' ? $param : undef;
     }
   }
 
@@ -194,7 +173,7 @@ sub unpacked_array {
       or $self->assert_token('var'); # not what we are asserting, but should give a useful error message
 
     die "Cannot have named parameters in an unpacked-array"
-      if $param->isa($self->param_class_named);
+      if NamedParam->check($param);
 
     die "Cannot have optional parameters in an unpacked-array"
       if !$param->required;
@@ -221,8 +200,7 @@ sub unpacked_hash {
 
     $DB::single = 1;
     die "Cannot have positional parameters in an unpacked-hash: " . $param->to_string
-      if !$param->isa($self->param_class_named) &&
-          $param->isa($self->param_class_positional) && $param->variable_name =~ /^\$/;
+      if $param->sigil eq '$' && PositionalParam->check($param);
 
     push @$params, $param;
 
@@ -297,19 +275,24 @@ sub param {
     die "Label required for named non-scalar param"
       if $param->{named} && !defined $param->{label};
 
-    $param->{positional_params} = $self->unpacked_array;
+    $param->{params} = $self->unpacked_array;
+    $param->{sigil} = '$';
+    $param->{unpacking} = 'Array';
   } elsif ($token->{type} eq '{') {
     die "Label required for named non-scalar param"
       if $param->{named} && !defined $param->{label};
 
-    $param->{named_params} = $self->unpacked_hash;
+    $param->{params} = $self->unpacked_hash;
+    $param->{sigil} = '$';
+    $param->{unpacking} = 'Hash';
   } elsif ($consumed || $token->{type} eq 'var') {
     $param->{variable_name} = $self->assert_token('var')->{literal};
+    $param->{sigil} = substr($param->{variable_name}, 0, 1);
 
     die "Label required for named non-scalar param"
       if $param->{variable_name} !~ /^\$/ && 
          $param->{named} && !defined $param->{label};
-    
+
   } else {
     return;
   }
