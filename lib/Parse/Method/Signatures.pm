@@ -614,7 +614,7 @@ Constant folding will also not be performed.
 
 Ash Berlin <ash@cpan.org>.
 
-Thanks to Florian Ragwitz <rafl>.
+Thanks to Florian Ragwitz <rafl@debian.org>.
 
 =head1 SEE ALSO
 
