@@ -575,7 +575,9 @@ deemed useful for L<TryCatch> and L<MooseX::Method::Signatures>.
 
 =over
 
-=item * Work out return interface
+=item * Document the parameter return types.
+
+=item * Probably lots of other things
 
 =back
 
@@ -610,9 +612,19 @@ Constant folding will also not be performed.
 
 =head1 AUTHOR
 
-Ash Berlin C<< <ash@cpan.org> >>.
+Ash Berlin <ash@cpan.org>.
 
-Thanks to rafl.
+Thanks to Florian Ragwitz <rafl>.
+
+=head1 SEE ALSO
+
+L<Devel::Declare> which is used by most modules that use this (currently by
+all modules known to the author.)
+
+L<http://github.com/ashb/trycatch/tree>.
+
+L<MooseX::Method::Signatures> and L<MooseX::Declare> which are due to be ported
+to use this module.
 
 =head1 LICENSE
 
