@@ -86,8 +86,6 @@ sub to_string {
     my ($self) = @_;
     my $ret = q{(};
 
-#    warn $self->dump;
-
     if ($self->has_invocant) {
         $ret .= $self->invocant->to_string;
         $ret .= q{:};
