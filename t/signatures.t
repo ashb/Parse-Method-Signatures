@@ -35,6 +35,8 @@ my @sigs = (
     ['($self: $moo)',           'invocant and positional'],
     ['(:apan($affe))',          'long named'], # called as $obj->foo(apan => $value)
     ['(:apan($affe)!)',         'required long named'],
+    ['($self: :$x)',            'named param with invocant'],
+    ['($: :$x)',                'named param with dummy invocant'],
     ['($x = 42)',               'positional with default'],
     ['(:$x = 42)',              'named with default'],
     ['($x = "foo")',            'simple string default'],
