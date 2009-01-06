@@ -13,7 +13,7 @@ use Parse::Method::Signatures::Types qw/PositionalParam NamedParam UnpackedParam
 
 use namespace::clean -except => 'meta';
 
-our $VERSION = 1.000000;
+our $VERSION = '1.000000';
 
 has 'tokens' => (
     is       => 'ro',
