@@ -25,7 +25,7 @@ testcover: pm_to_blib
 \tcover
 EOM
 
-Meta->resources('repository' => 'http://github.com/ashb/parse-method-signatures/tree/master');
+resources('repository' => 'http://github.com/ashb/parse-method-signatures/tree/master');
 
 auto_install;
 WriteAll;
