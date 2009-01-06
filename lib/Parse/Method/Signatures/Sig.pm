@@ -97,9 +97,9 @@ sub to_string {
         }
     }
 
-    $ret .= $self->_positional_params->to_string;
+    $ret .= $self->_positional_params->to_string if $self->has_positional_params;
     $ret .= q{, } if $self->has_positional_params && $self->has_named_params;
-    $ret .= $self->_named_params->to_string;
+    $ret .= $self->_named_params->to_string if $self->has_named_params;
 
     $ret .= q{)};
     return $ret;
