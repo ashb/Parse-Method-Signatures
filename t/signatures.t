@@ -71,6 +71,8 @@ my @sigs = (
     ['({:$x, :$y, %r}, :$z)',   'hash ref unpacking combined with named'],
     ['(:foo({:$x, :$y, %r}))',  'named hash ref unpacking'],
     ['(:foo($), :bar(@))',      'named placeholders'],
+    ['(Foo[Bar|Baz[Moo]]|Kooh $foo)',
+                                'complex parameterized type']
 );
 
 my @alternative = (
