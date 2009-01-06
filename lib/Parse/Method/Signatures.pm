@@ -43,13 +43,13 @@ has '_input' => (
 
 has 'signature_class' => (
     is      => 'ro',
-    isa     => 'Str',
+    isa     => Str,
     default => 'Parse::Method::Signatures::Sig',
 );
 
 has 'param_class' => (
     is      => 'ro',
-    isa     => 'Str',
+    isa     => Str,
     default => 'Parse::Method::Signatures::Param',
 );
 

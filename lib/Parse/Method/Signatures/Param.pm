@@ -15,13 +15,13 @@ has required => (
 
 has sigil => (
     is       => 'ro',
-    isa      => 'Str',
+    isa      => Str,
     required => 1,
 );
 
 has type_constraints => (
     is         => 'ro',
-    isa        => ArrayRef [Str],
+    isa        => ArrayRef[Str],
     predicate  => 'has_type_constraints',
     auto_deref => 1,
 );
@@ -34,7 +34,7 @@ has default_value => (
 
 has constraints => (
     is         => 'ro',
-    isa        => ArrayRef [Str],
+    isa        => ArrayRef[Str],
     predicate  => 'has_constraints',
     auto_deref => 1,
 );
