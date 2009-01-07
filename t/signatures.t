@@ -77,6 +77,8 @@ my @sigs = (
     ['($foo does coerce)',      'positional with traits (does)' , 'traits not implemented yet'],
     ['(:$foo is coerce)',       'named  with traits (is)'       , 'traits not implemented yet'],
     ['(:$foo does coerce)',     'named with traits (does)'      , 'traits not implemented yet'],
+    ['($foo is copy is ro does coerce)',
+                                'multiple traits',                'traits not implemented yet'],
 );
 
 my @alternative = (
@@ -111,6 +113,7 @@ my @invalid = (
     ['($foo = "pwd\')',         'unbalanced quotes'],
     ['(:$x:)',                  'named invocant is invalid'],
     ['($x! = "foo":)',          'default value for invocant is invalid'],
+    ['($foo is bar moo is bo)', 'invalid traits'],
 );
 
 plan tests => scalar @sigs * 3 + scalar @alternative + scalar @invalid;
