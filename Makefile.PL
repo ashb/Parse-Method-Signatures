@@ -14,8 +14,8 @@ requires 'MooseX::Types::Moose';
 requires 'namespace::clean';
 requires 'Text::Balanced' => 2.000000;
 
+test_requires 'aliased';
 test_requires 'Test::More';
-test_requires 'Test::Differences';
 test_requires 'Test::Exception';
 
 postamble(<<"EOM");

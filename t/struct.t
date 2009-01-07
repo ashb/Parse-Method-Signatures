@@ -1,38 +1,66 @@
 use strict;
 use warnings;
 
-use Test::More skip_all => 'port to signature objects'; #tests => 17;
-use Test::Differences;
+use Test::More tests => 29;
+use Test::Moose;
 
-use_ok('Parse::Method::Signatures') or BAIL_OUT('Cannot continue');
+use Parse::Method::Signatures;
 
-eq_or_diff(
-  scalar Parse::Method::Signatures->signature('(Str $name)'),
-  { params => [
-      { tc => 'Str',
-        var => '$name',
-      }
-    ]
-  },
-);
+use aliased 'Parse::Method::Signatures::Param';
 
-eq_or_diff(
-  scalar Parse::Method::Signatures->signature('(Str :$who, Int :$age where { $_ > 0 })'),
-  { params => [
-      { tc => 'Str',
-        named => 1,
-        var => '$who'
-      },
-      { tc => 'Int',
-        named => 1,
-        var => '$age',
-        where => [
-          '{ $_ > 0 }'
-        ]
-      },
-    ]
-  },
-);
+BEGIN {
+    eval "use aliased 'Parse::Method::Signatures::Param::${_}'"
+        for qw/Named Positional Bindable Placeholder/;
+
+    eval "use aliased 'Parse::Method::Signatures::Param::Unpacked::${_}' => 'Unpacked${_}'"
+        for qw/Array Hash/;
+}
+
+{
+    my $sig = Parse::Method::Signatures->signature('(Str $name)');
+
+    ok(!$sig->has_named_params);
+    ok($sig->has_positional_params);
+    is(scalar @{ $sig->positional_params }, 1);
+
+    my ($param) = $sig->positional_params;
+    isa_ok($param, Param);
+    ok($param->has_type_constraints);
+    is_deeply([$param->type_constraints], ['Str']);
+    is($param->variable_name, '$name');
+    ok($param->required);
+    ok(!$param->has_constraints);
+
+    does_ok($param, $_) for Positional, Bindable;
+}
+
+{
+    my $sig = Parse::Method::Signatures->signature('(Str :$who, Int :$age where { $_ > 0 })');
+
+    ok(!$sig->has_positional_params);
+    ok($sig->has_named_params);
+    is(scalar @{ $sig->named_params }, 2);
+
+    my @params = $sig->named_params;
+    isa_ok($_, Param) for @params;
+    for my $param (@params) {
+        does_ok($param, $_) for Named, Bindable;
+    }
+
+    my ($who, $age) = @params;
+    is_deeply([$who->type_constraints], ['Str']);
+    is($who->variable_name, '$who');
+    ok(!$who->required);
+    ok(!$who->has_constraints);
+
+    is_deeply([$age->type_constraints], ['Int']);
+    is($age->variable_name, '$age');
+    ok(!$age->required);
+    ok($age->has_constraints);
+    is_deeply([$age->constraints], ['{ $_ > 0 }']);
+}
+
+=for later
 
 eq_or_diff( 
   scalar Parse::Method::Signatures->signature('(Str $name, Bool :$excited = 0)'),
