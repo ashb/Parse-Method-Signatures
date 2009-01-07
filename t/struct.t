@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 29;
+use Test::More tests => 30;
 use Test::Moose;
 
 use Parse::Method::Signatures;
@@ -58,6 +58,20 @@ BEGIN {
     ok(!$age->required);
     ok($age->has_constraints);
     is_deeply([$age->constraints], ['{ $_ > 0 }']);
+}
+
+TODO: {
+    local $TODO = 'complex type constraints not parsed correctly yet';
+
+    my $sig = Parse::Method::Signatures->signature('(Foo[Bar|Baz[Moo]]|Kooh $foo)');
+    my ($param) = $sig->positional_params;
+    is_deeply([$param->type_constraints], [
+        'Foo', [
+            'Bar',
+            'Baz', ['Moo'],
+        ],
+        'Kooh',
+    ]);
 }
 
 =for later
