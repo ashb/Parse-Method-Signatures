@@ -72,7 +72,11 @@ my @sigs = (
     ['(:foo({:$x, :$y, %r}))',  'named hash ref unpacking'],
     ['(:foo($), :bar(@))',      'named placeholders'],
     ['(Foo[Bar|Baz[Moo]]|Kooh $foo)',
-                                'complex parameterized type']
+                                'complex parameterized type'],
+    ['($foo is coerce)',        'positional with traits (is)'   , 'traits not implemented yet'],
+    ['($foo does coerce)',      'positional with traits (does)' , 'traits not implemented yet'],
+    ['(:$foo is coerce)',       'named  with traits (is)'       , 'traits not implemented yet'],
+    ['(:$foo does coerce)',     'named with traits (does)'      , 'traits not implemented yet'],
 );
 
 my @alternative = (
