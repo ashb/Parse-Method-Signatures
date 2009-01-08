@@ -217,8 +217,11 @@ sub unpacked_hash {
 #        (OPTIONAL|REQUIRED)?
 #        default?
 #        where*
+#        does*
 #
 # where: WHERE <code block>
+#
+# does: DOES class
 #
 # var : COLON label '(' var_or_unpack ')' # label is classish, with only /a-z0-9_/i allowed
 #     | COLON VAR
@@ -334,6 +337,18 @@ sub param {
     substr(${$self->_input}, 0, length($code), '');
     push @{$param->{constraints}}, $code;
 
+    $token = $self->token;
+  }
+
+  while ($token->{type} eq 'DOES') {
+    $self->consume_token;
+    my $trait = $self->assert_token('class')->{literal};
+
+    die "class required, type constraint found"
+      if $trait =~ /[^a-zA-Z0-9_:]/;
+
+    $param->{param_traits} ||= [];
+    push @{$param->{param_traits}}, $trait;
     $token = $self->token;
   }
 
@@ -460,7 +475,9 @@ sub consume_token {
 }
 
 our %LEXTABLE = (
-  where => 'WHERE'
+  where => 'WHERE',
+  is => 'DOES',
+  does => 'DOES',
 );
 
 sub next_token {

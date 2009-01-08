@@ -39,6 +39,13 @@ has constraints => (
     auto_deref => 1,
 );
 
+has param_traits => (
+    is         => 'ro',
+    isa        => ArrayRef[Str],
+    predicate  => 'has_traits',
+    auto_deref => 1
+);
+
 has '+_trait_namespace' => (
     default => 'Parse::Method::Signatures::Param',
 );
@@ -63,6 +70,12 @@ sub _stringify_constraints {
     return q{ where } . join(q{ where }, $self->constraints);
 }
 
+sub _stringify_traits {
+    my ($self) = @_;
+    return q{} unless $self->has_traits;
+    return q{ is } . join(q{ is }, $self->param_traits);
+}
+
 sub to_string {
     my ($self) = @_;
     my $ret = q{};
@@ -72,6 +85,7 @@ sub to_string {
     $ret .= $self->_stringify_required;
     $ret .= $self->_stringify_default_value;
     $ret .= $self->_stringify_constraints;
+    $ret .= $self->_stringify_traits;
 
     return $ret;
 }
