@@ -353,10 +353,11 @@ sub param {
   }
 
   #use Data::Dumper; $Data::Dumper::Indent = 1;warn Dumper($param);
+  $param = $self->create_param($param);
   if ($class_meth) {
     return wantarray ? ($param, $self->remaining_input) : $param;
   } else {
-    return $self->create_param($param);
+    return $param
   }
 }
 
@@ -482,7 +483,8 @@ our %LEXTABLE = (
 
 sub next_token {
   my ($self, $data) = @_;
-
+  
+  return { type => 'EOF' } if $$data =~ m/^\s*$/;
   my $re = qr/^ (\s* (?:
     ([(){}\[\],:=|!?]) |
     (
