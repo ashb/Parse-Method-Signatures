@@ -63,15 +63,19 @@ BEGIN {
 TODO: {
     local $TODO = 'complex type constraints not parsed correctly yet';
 
-    my $sig = Parse::Method::Signatures->signature('(Foo[Bar|Baz[Moo]]|Kooh $foo)');
+    my $sig = Parse::Method::Signatures->signature('(Foo[Corge,Bar|Baz[Moo,Kooh]]|Garply $foo)');
     my ($param) = $sig->positional_params;
-    is_deeply([$param->type_constraints], [
-        'Foo', [
-            'Bar',
-            'Baz', ['Moo'],
-        ],
-        'Kooh',
-    ]);
+    is_deeply([$param->type_constraits],
+        [ \['Foo', [
+                'Corge',
+                \['Bar',
+                  'Baz', \['Moo', 'Kooh']
+                ],
+            ],
+            'Garply',
+        ] ]
+    );
+
 }
 
 =for later
