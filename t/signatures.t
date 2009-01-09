@@ -74,11 +74,11 @@ my @sigs = (
     ['(Foo[Bar|Baz[Moo]]|Kooh $foo)',
                                 'complex parameterized type'],
     ['($foo is coerce)',        'positional with traits (is)'],
-    ['($foo does coerce)',      'positional with traits (does)' , 'traits not implemented yet'],
+    ['($foo does coerce)',      'positional with traits (does)'],
     ['(:$foo is coerce)',       'named  with traits (is)'],
-    ['(:$foo does coerce)',     'named with traits (does)'      , 'traits not implemented yet'],
+    ['(:$foo does coerce)',     'named with traits (does)'],
     ['($foo is copy is ro does coerce)',
-                                'multiple traits',                'traits not implemented yet'],
+                                'multiple traits'],
 );
 
 my @alternative = (

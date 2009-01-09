@@ -11,6 +11,7 @@ requires 'Moose';
 requires 'MooseX::Traits';
 requires 'MooseX::Types';
 requires 'MooseX::Types::Moose';
+requires 'MooseX::Types::Structured';
 requires 'namespace::clean';
 requires 'Text::Balanced' => 2.000000;
 

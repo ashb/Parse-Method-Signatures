@@ -1,6 +1,7 @@
 package Parse::Method::Signatures::Param;
 
 use Moose;
+use MooseX::Types::Structured qw/Tuple/;
 use MooseX::Types::Moose qw/Bool Str ArrayRef/;
 
 use namespace::clean -except => 'meta';
@@ -41,7 +42,7 @@ has constraints => (
 
 has param_traits => (
     is         => 'ro',
-    isa        => ArrayRef[Str],
+    isa        => ArrayRef[Tuple[Str, Str]],
     predicate  => 'has_traits',
     auto_deref => 1
 );
@@ -73,7 +74,7 @@ sub _stringify_constraints {
 sub _stringify_traits {
     my ($self) = @_;
     return q{} unless $self->has_traits;
-    return q{ is } . join(q{ is }, $self->param_traits);
+    return q{ } . join q{ }, map { @{ $_ } } $self->param_traits;
 }
 
 sub to_string {

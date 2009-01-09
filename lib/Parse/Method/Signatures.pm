@@ -221,7 +221,7 @@ sub unpacked_hash {
 #
 # where: WHERE <code block>
 #
-# does: DOES class
+# does: TRAIT class
 #
 # var : COLON label '(' var_or_unpack ')' # label is classish, with only /a-z0-9_/i allowed
 #     | COLON VAR
@@ -340,7 +340,7 @@ sub param {
     $token = $self->token;
   }
 
-  while ($token->{type} eq 'DOES') {
+  while ($token->{type} eq 'TRAIT') {
     $self->consume_token;
     my $trait = $self->assert_token('class')->{literal};
 
@@ -348,7 +348,7 @@ sub param {
       if $trait =~ /[^a-zA-Z0-9_:]/;
 
     $param->{param_traits} ||= [];
-    push @{$param->{param_traits}}, $trait;
+    push @{$param->{param_traits}}, [$token->{literal} => $trait];
     $token = $self->token;
   }
 
@@ -476,8 +476,8 @@ sub consume_token {
 
 our %LEXTABLE = (
   where => 'WHERE',
-  is => 'DOES',
-  does => 'DOES',
+  is    => 'TRAIT',
+  does  => 'TRAIT',
 );
 
 sub next_token {
