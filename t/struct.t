@@ -63,9 +63,9 @@ BEGIN {
 TODO: {
     local $TODO = 'complex type constraints not parsed correctly yet';
 
-    my $sig = Parse::Method::Signatures->signature('(Foo[Corge,Bar|Baz[Moo,Kooh]]|Garply $foo)');
-    my ($param) = $sig->positional_params;
-    is_deeply([$param->type_constraits],
+    my $param = Parse::Method::Signatures->param('Foo[Corge,Bar|Baz[Moo,Kooh]]|Garply $foo');
+    warn Dumper($param); use Data::Dumper;
+    is_deeply([$param->type_constraints],
         [ \['Foo', [
                 'Corge',
                 \['Bar',

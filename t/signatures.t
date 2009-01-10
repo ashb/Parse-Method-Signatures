@@ -114,6 +114,8 @@ my @invalid = (
     ['(:$x:)',                  'named invocant is invalid'],
     ['($x! = "foo":)',          'default value for invocant is invalid'],
     ['($foo is bar moo is bo)', 'invalid traits'],
+    ['(Foo:: Bar $foo)',        'invalid spaces in TC'],
+    ['(Foo ::Bar $foo)',        'invalid spaces in TC'],
 );
 
 plan tests => scalar @sigs * 3 + scalar @alternative + scalar @invalid;
