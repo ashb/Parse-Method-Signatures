@@ -9,6 +9,7 @@ use Text::Balanced qw(
 );
 
 use Parse::Method::Signatures::ParamCollection;
+use Parse::Method::Signatures::TypeConstraint;
 use Parse::Method::Signatures::Types qw/PositionalParam NamedParam UnpackedParam/;
 
 use namespace::clean -except => 'meta';
@@ -246,7 +247,8 @@ sub param {
   my $consumed = 0;
 
   my $token = $self->token;
-  if (my $tc = $self->tc) {
+  if (my @tc = $self->tc) {
+    my $tc = Parse::Method::Signatures::TypeConstraint->new(str => $tc[1], data => $tc[0]);
     $param->{type_constraints} = $tc;
     $token = $self->token;
     $consumed = 1;
@@ -259,11 +261,8 @@ sub param {
     $consumed = 1;
 
     # Probably a label
-    if ($token->{type} eq 'class') {
+    if ($token->{type} eq 'ident') {
       $param->{label} = $self->consume_token->{literal};
-
-      die "label required, class or type constraint found"
-        if $param->{label} =~ /[^a-zA-Z0-9_]/;
 
       $self->assert_token('(');
       $token = $self->token;
@@ -342,10 +341,7 @@ sub param {
 
   while ($token->{type} eq 'TRAIT') {
     $self->consume_token;
-    my $trait = $self->assert_token('class')->{literal};
-
-    die "class required, type constraint found"
-      if $trait =~ /[^a-zA-Z0-9_:]/;
+    my $trait = $self->assert_token('ident')->{literal};
 
     $param->{param_traits} ||= [];
     push @{$param->{param_traits}}, [$token->{literal} => $trait];
@@ -451,31 +447,69 @@ sub tc {
 
   my $token = $self->token;
 
-  my $tc = $token->{literal};
+  my $tc_str = $token->{literal};
   my $full = $token->{orig};
   if ($token->{type} ne 'ident' && !exists $LEXTABLE{$token->{literal}}) {
-    return undef unless ($required);
+    return unless ($required);
 
     $self->assert_token('ident');
   }
   $self->consume_token;
 
   while (( $token = $self->token)->{type} eq '::') {
-    $tc .= $token->{literal};
+    $tc_str .= '::';
     $full .= $token->{orig};
     $self->consume_token;
 
     $token = $self->token;
-    if ($token->{type} ne 'ident' || !exists $LEXTABLE{$token->{literal}}) {
+    if ($token->{type} ne 'ident' && !exists $LEXTABLE{$token->{literal}}) {
       $self->assert_token('ident');
     }
     $full .= $token->{orig};
-    die "Invalid spacing in type constraint after '$tc'\n"
-      if ($full =~ /\s::|::\s/);
-    $tc .= $self->consume_token->{literal};
+    die "Invalid spacing in type constraint after '$tc_str'\n"
+      if ($full =~ /\s::|::\s/ms);
+    $tc_str .= $self->consume_token->{literal};
   }
 
-  return $tc;
+  $token = $self->token;
+
+  my $tc = $tc_str;
+  if ($token->{type} eq '[') {
+    $tc_str .= '[';
+    $self->consume_token;
+
+    my @params = ($self->tc(1));
+    $tc_str .= pop @params;
+
+    while ($self->token->{type} eq ',') {
+      $self->consume_token;
+      my ($sub, $str) = $self->tc(1);
+      push @params, $sub;
+      $tc_str .= "," . $str;
+    }
+
+    $self->assert_token(']');
+    $tc_str .= ']';
+
+    $tc = { -type => $tc, -params => \@params };
+  }
+
+  if ($self->token->{type} eq '|') {
+    my @tcs = ( $tc );
+
+    while ($self->token->{type} eq '|') {
+      $tc_str .= '|';
+      $self->consume_token;
+      my ($sub, $str) = $self->tc(1);
+      push @tcs, $sub;
+      $tc_str .= $str;
+    }
+
+    return ({ -or => \@tcs }, $tc_str);
+     
+  } else { 
+    return ($tc, $tc_str);
+  }
 }
 
 sub foo {
@@ -542,7 +576,7 @@ sub token {
 sub consume_token {
   my ($self) = @_;
 
-  die "No token to consume"
+  Carp::confess "No token to consume"
     unless @{$self->tokens};
 
   return shift @{$self->tokens};
