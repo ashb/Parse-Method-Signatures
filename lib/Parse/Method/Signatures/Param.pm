@@ -2,7 +2,7 @@ package Parse::Method::Signatures::Param;
 
 use Moose;
 use MooseX::Types::Structured qw/Tuple/;
-use MooseX::Types::Moose qw/Bool Str ArrayRef HashRef/;
+use MooseX::Types::Moose qw/Bool Str ArrayRef/;
 
 use namespace::clean -except => 'meta';
 
@@ -22,8 +22,9 @@ has sigil => (
 
 has type_constraints => (
     is         => 'ro',
-    isa        => 'Parse::Method::Signatures::TypeConstraint',
+    isa        => ArrayRef[Str],
     predicate  => 'has_type_constraints',
+    auto_deref => 1,
 );
 
 has default_value => (
@@ -53,7 +54,7 @@ has '+_trait_namespace' => (
 sub _stringify_type_constraints {
     my ($self) = @_;
     return $self->has_type_constraints
-        ? $self->type_constraints->str . q{ }
+        ? join(q{|}, $self->type_constraints) . q{ }
         : q{};
 }
 

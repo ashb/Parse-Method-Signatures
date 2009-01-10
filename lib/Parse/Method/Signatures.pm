@@ -9,13 +9,11 @@ use Text::Balanced qw(
 );
 
 use Parse::Method::Signatures::ParamCollection;
-use Parse::Method::Signatures::TypeConstraint;
 use Parse::Method::Signatures::Types qw/PositionalParam NamedParam UnpackedParam/;
 
 use namespace::clean -except => 'meta';
 
 our $VERSION = '1.000000';
-our %LEXTABLE;
 
 has 'tokens' => (
     is       => 'ro',
@@ -214,16 +212,16 @@ sub unpacked_hash {
   return $params;
 }
 
-# param: tc?
+# param: classishTCName?
 #        var
 #        (OPTIONAL|REQUIRED)?
 #        default?
 #        where*
-#        trait*
+#        does*
 #
 # where: WHERE <code block>
 #
-# trait: TRAIT class
+# does: TRAIT class
 #
 # var : COLON label '(' var_or_unpack ')' # label is classish, with only /a-z0-9_/i allowed
 #     | COLON VAR
@@ -247,9 +245,9 @@ sub param {
   my $consumed = 0;
 
   my $token = $self->token;
-  if (my @tc = $self->tc) {
-    my $tc = Parse::Method::Signatures::TypeConstraint->new(str => $tc[1], data => $tc[0]);
-    $param->{type_constraints} = $tc;
+  if ($token->{type} eq 'class') {
+    $param->{type_constraints} = [split q{\|}, $token->{literal}];
+    $self->consume_token;
     $token = $self->token;
     $consumed = 1;
   }
@@ -261,8 +259,11 @@ sub param {
     $consumed = 1;
 
     # Probably a label
-    if ($token->{type} eq 'ident') {
+    if ($token->{type} eq 'class') {
       $param->{label} = $self->consume_token->{literal};
+
+      die "label required, class or type constraint found"
+        if $param->{label} =~ /[^a-zA-Z0-9_]/;
 
       $self->assert_token('(');
       $token = $self->token;
@@ -341,7 +342,10 @@ sub param {
 
   while ($token->{type} eq 'TRAIT') {
     $self->consume_token;
-    my $trait = $self->assert_token('ident')->{literal};
+    my $trait = $self->assert_token('class')->{literal};
+
+    die "class required, type constraint found"
+      if $trait =~ /[^a-zA-Z0-9_:]/;
 
     $param->{param_traits} ||= [];
     push @{$param->{param_traits}}, [$token->{literal} => $trait];
@@ -437,82 +441,93 @@ sub _variable_like {
   }
 }
 
-# tc: CLASS ('::' CLASS)*
-#   | tc '[' tc (',' tc)* ']'
-#   | tc '|' tc
+sub assert_token {
+  my ($self, $type) = @_;
 
-sub tc {
-  my ($self, $required) = @_;
-  my $data = $self->_input;
-
-  my $token = $self->token;
-
-  my $tc_str = $token->{literal};
-  my $full = $token->{orig};
-  if ($token->{type} ne 'ident' && !exists $LEXTABLE{$token->{literal}}) {
-    return unless ($required);
-
-    $self->assert_token('ident');
-  }
-  $self->consume_token;
-
-  while (( $token = $self->token)->{type} eq '::') {
-    $tc_str .= '::';
-    $full .= $token->{orig};
-    $self->consume_token;
-
-    $token = $self->token;
-    if ($token->{type} ne 'ident' && !exists $LEXTABLE{$token->{literal}}) {
-      $self->assert_token('ident');
-    }
-    $full .= $token->{orig};
-    die "Invalid spacing in type constraint after '$tc_str'\n"
-      if ($full =~ /\s::|::\s/ms);
-    $tc_str .= $self->consume_token->{literal};
+  if ($self->token->{type} eq $type) {
+    return $self->consume_token;
   }
 
-  $token = $self->token;
-
-  my $tc = $tc_str;
-  if ($token->{type} eq '[') {
-    $tc_str .= '[';
-    $self->consume_token;
-
-    my @params = ($self->tc(1));
-    $tc_str .= pop @params;
-
-    while ($self->token->{type} eq ',') {
-      $self->consume_token;
-      my ($sub, $str) = $self->tc(1);
-      push @params, $sub;
-      $tc_str .= "," . $str;
-    }
-
-    $self->assert_token(']');
-    $tc_str .= ']';
-
-    $tc = { -type => $tc, -params => \@params };
-  }
-
-  if ($self->token->{type} eq '|') {
-    my @tcs = ( $tc );
-
-    while ($self->token->{type} eq '|') {
-      $tc_str .= '|';
-      $self->consume_token;
-      my ($sub, $str) = $self->tc(1);
-      push @tcs, $sub;
-      $tc_str .= $str;
-    }
-
-    return ({ -or => \@tcs }, $tc_str);
-     
-  } else { 
-    return ($tc, $tc_str);
-  }
+  Carp::confess "$type required, found  '" .$self->token->{literal} . "'!";
 }
 
-sub foo {
+sub token {
+  my ($self, $la) = @_;
+
+  $la ||= 0;
+
+  while (@{$self->tokens} <= $la) {
+    my $token = $self->next_token($self->_input);
+
+    $token ||= { type => 'NUL' };
+
+    push @{$self->tokens}, $token;
+  }
+  return $self->tokens->[$la];
+}
+
+sub consume_token {
+  my ($self) = @_;
+
+  die "No token to consume"
+    unless @{$self->tokens};
+
+  return shift @{$self->tokens};
+}
+
+our %LEXTABLE = (
+  where => 'WHERE',
+  is    => 'TRAIT',
+  does  => 'TRAIT',
+);
+
+sub next_token {
+  my ($self, $data) = @_;
+  
+  return { type => 'EOF' } if $$data =~ m/^\s*$/;
+  my $re = qr/^ (\s* (?:
+    ([(){}\[\],:=|!?]) |
+    (
+      [A-Za-z][a-zA-Z0-0_-]+
+      (?:::[A-Za-z][a-zA-Z0-0_-]+)*
+    ) |
+    ([\$\%\@](?:[_A-Za-z][a-zA-Z0-9_]*)?) |
+  ) (?:\s*\#.*?[\r\n])?\s*) /x;
+
+  # symbols in $2
+  # class-name ish in $3
+  # $var in $4
+
+  unless ( $$data =~ s/$re//) {
+    die "Error parsing signature at '" . substr($$data, 0, 10);
+  }
+
+  my ($orig, $sym, $cls,$var) = ($1,$2,$3, $4);
+
+  return { type => $sym, literal => $sym, orig => $orig }
+    if defined $sym;
+
+  if (defined $cls) {
+    if ($LEXTABLE{$cls}) {
+      return { type => $LEXTABLE{$cls}, literal => $cls, orig => $orig };
+    }
+
+    my ($tc, $orig) = $self->extract_tc($cls);
+    return {
+      type => 'class',
+      literal => $tc,
+      orig => $orig
+    };
+  }
+
+  return { type => 'var', literal => $var, orig => $orig }
+    if $var;
+
+
+  die "Shouldn't get here!";
+}
+
+sub extract_tc {
   my ($self, $tc) = @_;
   my $data = $self->_input;
 
@@ -547,87 +562,6 @@ sub foo {
 
   return ($tc, $orig);
 }
-
-sub assert_token {
-  my ($self, $type) = @_;
-
-  if ($self->token->{type} eq $type) {
-    return $self->consume_token;
-  }
-
-  Carp::confess "$type required, found  '" .$self->token->{literal} . "'!";
-}
-
-sub token {
-  my ($self, $la) = @_;
-
-  $la ||= 0;
-
-  while (@{$self->tokens} <= $la) {
-    my $token = $self->next_token($self->_input);
-
-    $token ||= { type => 'NUL' };
-
-    push @{$self->tokens}, $token;
-  }
-  return $self->tokens->[$la];
-}
-
-sub consume_token {
-  my ($self) = @_;
-
-  Carp::confess "No token to consume"
-    unless @{$self->tokens};
-
-  return shift @{$self->tokens};
-}
-
-%LEXTABLE = (
-  where => 'WHERE',
-  is    => 'TRAIT',
-  does  => 'TRAIT',
-);
-
-sub next_token {
-  my ($self, $data) = @_;
- 
-  return { type => 'NUL' } if $$data =~ m/^\s*$/;
-
-  my $re = qr/^ (\s* (?:
-    ( [(){}\[\],=|!?] | :{1,2} ) |
-    ( [A-Za-z_][a-zA-Z0-0_-]+ ) |
-    ( [\$\%\@] (?: [_A-Za-z][a-zA-Z0-9_]* )? ) |
-  ) (?:\s*\#.*?[\r\n])?\s*) /x;
-
-  # symbols in $2
-  # class-name/identifier in $3
-  # $var in $4
-
-  unless ( $$data =~ s/$re//) {
-    die "Error parsing signature at '" . substr($$data, 1, 10) . "'";
-  }
-
-  my ($orig, $sym, $cls,$var) = ($1,$2,$3, $4);
-
-  return { type => $sym, literal => $sym, orig => $orig }
-    if defined $sym;
-
-  if (defined $cls) {
-
-    return {
-      type => $LEXTABLE{$cls} || 'ident',
-      literal => $cls,
-      orig => $orig
-    };
-  }
-
-  return { type => 'var', literal => $var, orig => $orig }
-    if $var;
-
-  die "Error parsing signature at '" . substr($orig . $$data, 1, 10) . "'";
-
-}
-
 
 sub remaining_input {
   my ($self) = @_;
