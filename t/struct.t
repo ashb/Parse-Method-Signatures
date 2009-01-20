@@ -2,6 +2,7 @@ use strict;
 use warnings;
 
 use Test::More tests => 30;
+use Test::Differences;
 use Test::Moose;
 
 use Parse::Method::Signatures;
@@ -26,7 +27,7 @@ BEGIN {
     my ($param) = $sig->positional_params;
     isa_ok($param, Param);
     ok($param->has_type_constraints);
-    is_deeply([$param->type_constraints], ['Str']);
+    is($param->type_constraints->data, 'Str');
     is($param->variable_name, '$name');
     ok($param->required);
     ok(!$param->has_constraints);
@@ -48,32 +49,39 @@ BEGIN {
     }
 
     my ($who, $age) = @params;
-    is_deeply([$who->type_constraints], ['Str']);
+    is($who->type_constraints->data, 'Str');
     is($who->variable_name, '$who');
     ok(!$who->required);
     ok(!$who->has_constraints);
 
-    is_deeply([$age->type_constraints], ['Int']);
+    is($age->type_constraints->data, 'Int');
     is($age->variable_name, '$age');
     ok(!$age->required);
     ok($age->has_constraints);
     is_deeply([$age->constraints], ['{ $_ > 0 }']);
 }
 
-TODO: {
-    local $TODO = 'complex type constraints not parsed correctly yet';
+{
 
-    my $sig = Parse::Method::Signatures->signature('(Foo[Corge,Bar|Baz[Moo,Kooh]]|Garply $foo)');
-    my ($param) = $sig->positional_params;
-    is_deeply([$param->type_constraits],
-        [ \['Foo', [
-                'Corge',
-                \['Bar',
-                  'Baz', \['Moo', 'Kooh']
-                ],
-            ],
-            'Garply',
-        ] ]
+    my $param = Parse::Method::Signatures->param('Foo[Corge,Bar|Baz[Moo,Kooh]]|Garply $foo');
+    eq_or_diff($param->type_constraints->data,
+      { 
+        -or => [
+          { -type => 'Foo',
+            -params => [
+              'Corge',
+              { -or => [
+                  'Bar',
+                  { -type => 'Baz',
+                    -params => [ qw/Moo Kooh/ ]
+                  }
+                ]
+              }
+            ]
+          },
+          'Garply'
+        ]
+      }
     );
 
 }
