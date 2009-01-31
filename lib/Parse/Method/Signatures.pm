@@ -11,6 +11,7 @@ use Text::Balanced qw(
 use Parse::Method::Signatures::ParamCollection;
 use Parse::Method::Signatures::TypeConstraint;
 use Parse::Method::Signatures::Types qw/PositionalParam NamedParam UnpackedParam/;
+use Carp qw/croak/;
 
 use namespace::clean -except => 'meta';
 
@@ -108,14 +109,14 @@ sub signature {
   if ($param && $self->token->{type} eq ':') {
     # That param was actualy the invocant
     $args->{invocant} = $param;
-    die "Invocant cannot be named"
+    croak "Invocant cannot be named"
       if NamedParam->check($param);
-    die "Invocant cannot be optional"
+    croak "Invocant cannot be optional"
       if !$param->required;
-    die "Invocant cannot have a default value"
+    croak "Invocant cannot have a default value"
       if $param->has_default_value;
 
-    die "Invocant must be a simple scalar"
+    croak "Invocant must be a simple scalar"
       if UnpackedParam->check($param) || $param->sigil ne '$';
 
     $self->consume_token;
@@ -133,17 +134,17 @@ sub signature {
       $self->consume_token;
 
       $param = $self->param;
-      die "parameter expected"
+      croak "parameter expected"
         if !$param;
 
       my $is_named = NamedParam->check($param);
       if (!$is_named) {
         if ($param->required && $opt_pos_param) {
-          die "Invalid: Required positional param '"
+          croak "Invalid: Required positional param '"
             . $param->variable_name . "' found after optional one.\n";
         }
         if ($greedy) {
-          die "Invalid: Un-named parameter '" . $param->variable_name
+          croak "Invalid: Un-named parameter '" . $param->variable_name
             . "' after greedy '" 
             . $greedy->variable_name . "'\n";
         }
@@ -174,10 +175,10 @@ sub unpacked_array {
     my $param = $self->param
       or $self->assert_token('var'); # not what we are asserting, but should give a useful error message
 
-    die "Cannot have named parameters in an unpacked-array"
+    croak "Cannot have named parameters in an unpacked-array"
       if NamedParam->check($param);
 
-    die "Cannot have optional parameters in an unpacked-array"
+    croak "Cannot have optional parameters in an unpacked-array"
       if !$param->required;
 
     push @$params, $param;
@@ -201,7 +202,7 @@ sub unpacked_hash {
       or $self->assert_token('var'); # not what we are asserting, but should give a useful error message
 
     $DB::single = 1;
-    die "Cannot have positional parameters in an unpacked-hash: " . $param->to_string
+    croak "Cannot have positional parameters in an unpacked-hash: " . $param->to_string
       if $param->sigil eq '$' && PositionalParam->check($param);
 
     push @$params, $param;
@@ -239,7 +240,7 @@ sub param {
   my $self = shift;
   my $class_meth;
   unless (blessed($self)) {
-    $self = $self->new(@_ == 1 ? (input => $_[0]) : @_);
+    $self = $self->new( @_ == 1 ? (input => $_[0]) : @_);
     $class_meth = 1;
   }
 
@@ -274,14 +275,14 @@ sub param {
 
   #use Data::Dumper; warn Dumper($param, $token);
   if ($token->{type} eq '[') {
-    die "Label required for named non-scalar param"
+    croak "Label required for named non-scalar param"
       if $param->{named} && !defined $param->{label};
 
     $param->{params} = $self->unpacked_array;
     $param->{sigil} = '$';
     $param->{unpacking} = 'Array';
   } elsif ($token->{type} eq '{') {
-    die "Label required for named non-scalar param"
+    croak "Label required for named non-scalar param"
       if $param->{named} && !defined $param->{label};
 
     $param->{params} = $self->unpacked_hash;
@@ -291,7 +292,7 @@ sub param {
     $param->{variable_name} = $self->assert_token('var')->{literal};
     $param->{sigil} = substr($param->{variable_name}, 0, 1);
 
-    die "Label required for named non-scalar param"
+    croak "Label required for named non-scalar param"
       if $param->{variable_name} !~ /^\$/ && 
          $param->{named} && !defined $param->{label};
 
@@ -302,6 +303,7 @@ sub param {
   if (defined $param->{label}) {
     $self->assert_token(')');
   }
+
 
   $token = $self->token;
 
@@ -331,7 +333,7 @@ sub param {
     my ($code) = extract_codeblock(${$self->_input});
 
     # Text::Balanced *sets* $@. How horrible.
-    die "$@" if $@;
+    croak "$@" if $@;
 
     substr(${$self->_input}, 0, length($code), '');
     push @{$param->{constraints}}, $code;
@@ -414,13 +416,13 @@ sub _quote_like {
 
   return if blessed $@ && $@->{error} =~ /^No quotelike operator found after prefix/;
 
-  die "$@" if $@;
+  croak "$@" if $@;
   return unless $quote[0];
 
   my $op = $quote[3] || $quote[4];
 
   my %whitelist = map { $_ => 1 } qw(q qq qw qr " ');
-  die "rejected quotelike operator: $op" unless $whitelist{$op};
+  croak "rejected quotelike operator: $op" unless $whitelist{$op};
 
   substr($$data, 0, length $quote[0], '');
 
@@ -466,7 +468,7 @@ sub tc {
       $self->assert_token('ident');
     }
     $full .= $token->{orig};
-    die "Invalid spacing in type constraint after '$tc_str'\n"
+    croak "Invalid spacing in type constraint after '$tc_str'\n"
       if ($full =~ /\s::|::\s/ms);
     $tc_str .= $self->consume_token->{literal};
   }
@@ -524,16 +526,16 @@ sub foo {
     if ($2 eq '[') {
       $level++;
     } elsif ($2 eq ',') {
-      die "Unexpected '$1' in type constraint after '$tc', $level, '$$data'\n"
+      croak "Unexpected '$1' in type constraint after '$tc', $level, '$$data'\n"
         unless $level;
     } elsif ($2 eq ']' ) {
-      die "Unexpected '$1' in type constraint after '$tc', $level, '$$data'\n"
+      croak "Unexpected '$1' in type constraint after '$tc', $level, '$$data'\n"
         unless $level;
       $level--;
       next;
     }
 
-    die "Error parsing type constraint after '$tc' (class-like expected)\n"
+    croak "Error parsing type constraint after '$tc' (class-like expected)\n"
       unless $$data =~ s/^ (
         [A-Za-z][a-zA-Z0-0_-]+
         (?:::[A-Za-z][a-zA-Z0-0_-]+)*
@@ -542,7 +544,7 @@ sub foo {
     $orig .= $1;
   }
 
-  die "Unbalanced [] in type constraint: '$tc'\n"
+  croak "Unbalanced [] in type constraint: '$tc'\n"
     if $level;
 
   return ($tc, $orig);
@@ -604,7 +606,7 @@ sub next_token {
   # $var in $4
 
   unless ( $$data =~ s/$re//) {
-    die "Error parsing signature at '" . substr($$data, 1, 10) . "'";
+    croak "Error parsing signature at '" . substr($$data, 0, 10) . "'";
   }
 
   my ($orig, $sym, $cls,$var) = ($1,$2,$3, $4);
@@ -624,7 +626,7 @@ sub next_token {
   return { type => 'var', literal => $var, orig => $orig }
     if $var;
 
-  die "Error parsing signature at '" . substr($orig . $$data, 1, 10) . "'";
+  croak "Error parsing signature at '" . substr($orig . $$data, 0, 10) . "'";
 
 }
 
@@ -675,15 +677,15 @@ called as class methods.
 
  my $sig = Parse::Method::Signatures->signature( '(Str $foo)' )
 
-Attempts to parse the (bracketed) method signature. Returns a value or dies on
-error.
+Attempts to parse the (bracketed) method signature. Returns a value or croaks
+on error.
 
 =head2 param
 
   my $param = Parse::Method::Signatures->param( 'Str $foo where { length($_) < 10 }')
 
 Attempts to parse the specification for a single parameter. Returns value or
-dies on error.
+croaks on error.
 
 =head1 CAVEATS
 

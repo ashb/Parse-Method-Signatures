@@ -274,6 +274,15 @@ eq_or_diff(
     },
     ') further data }'],
 );
+eq_or_diff(
+  [ Parse::Method::Signatures->param(
+      input => 'Str $name) further data }',
+    ) ],
+  [ { tc => 'Str',
+      var => '$name',
+    },
+    ') further data }'],
+);
 
 eq_or_diff(
   [ Parse::Method::Signatures->signature( "(\$param1 # Foo bar\n \$param2) postfix") ],
