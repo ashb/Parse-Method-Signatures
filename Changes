@@ -1,4 +1,10 @@
 Changelog for Parse::Method::Signatures
 
-1.000000 - 2008/01/05
+1.001000 - 2009/01/31
+  - Change how TCs are stored and parse for better support in reconstructing
+    types at runtime
+  - Switch to MooseX::Types
+  - Support traits (e.g. does coerce) on params
+
+1.000000 - 2009/01/05
   - Initial release

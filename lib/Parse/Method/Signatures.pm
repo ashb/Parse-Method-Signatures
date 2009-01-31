@@ -15,7 +15,7 @@ use Carp qw/croak/;
 
 use namespace::clean -except => 'meta';
 
-our $VERSION = '1.000000';
+our $VERSION = '1.001000';
 our %LEXTABLE;
 
 has 'tokens' => (
@@ -508,46 +508,10 @@ sub tc {
     }
 
     return ({ -or => \@tcs }, $tc_str);
-     
-  } else { 
+
+  } else {
     return ($tc, $tc_str);
   }
-}
-
-sub foo {
-  my ($self, $tc) = @_;
-  my $data = $self->_input;
-
-  my $orig = "$tc";
-  my $level = 0;
-  while ($$data =~ s/^([ \t]*([|\[\],])[ \t]*)//x) {
-    $orig .= $1;
-    $tc .= $2;
-    if ($2 eq '[') {
-      $level++;
-    } elsif ($2 eq ',') {
-      croak "Unexpected '$1' in type constraint after '$tc', $level, '$$data'\n"
-        unless $level;
-    } elsif ($2 eq ']' ) {
-      croak "Unexpected '$1' in type constraint after '$tc', $level, '$$data'\n"
-        unless $level;
-      $level--;
-      next;
-    }
-
-    croak "Error parsing type constraint after '$tc' (class-like expected)\n"
-      unless $$data =~ s/^ (
-        [A-Za-z][a-zA-Z0-0_-]+
-        (?:::[A-Za-z][a-zA-Z0-0_-]+)*
-        ) //x;
-    $tc .= $1;
-    $orig .= $1;
-  }
-
-  croak "Unbalanced [] in type constraint: '$tc'\n"
-    if $level;
-
-  return ($tc, $orig);
 }
 
 sub assert_token {
