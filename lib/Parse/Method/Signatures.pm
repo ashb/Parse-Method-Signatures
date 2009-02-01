@@ -15,7 +15,7 @@ use Carp qw/croak/;
 
 use namespace::clean -except => 'meta';
 
-our $VERSION = '1.001000';
+our $VERSION = '1.001001';
 our %LEXTABLE;
 
 has 'tokens' => (
