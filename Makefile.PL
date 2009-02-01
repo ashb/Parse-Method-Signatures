@@ -18,6 +18,7 @@ requires 'Text::Balanced' => 2.000000;
 test_requires 'aliased';
 test_requires 'Test::More';
 test_requires 'Test::Exception';
+test_requires 'Test::Differences';
 
 postamble(<<"EOM");
 testcover: pm_to_blib

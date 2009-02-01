@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 30;
+use Test::More tests => 31;
 use Test::Differences;
 use Test::Moose;
 
@@ -84,6 +84,15 @@ BEGIN {
       }
     );
 
+    $param = Parse::Method::Signatures->param('Dict[foo => Int] $foo');
+    eq_or_diff($param->type_constraints->data,
+      { -type => 'Dict',
+        -params => [
+          { -str => 'foo' },
+          'Int',
+        ]
+      }
+    );
 }
 
 =for later

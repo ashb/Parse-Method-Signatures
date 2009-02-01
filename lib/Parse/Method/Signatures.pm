@@ -484,9 +484,16 @@ sub tc {
     $tc_str .= pop @params;
 
     while ($self->token->{type} eq ',') {
-      $self->consume_token;
+      my $lit = $self->consume_token->{literal};
+
       my ($sub, $str) = $self->tc(1);
+
+      # Turn previous arg into explicit str if followed by a fat comma
+      if ($lit eq '=>' && !ref $params[-1]) {
+        $params[-1] = { -str => $params[-1] };
+      }
       push @params, $sub;
+      
       $tc_str .= "," . $str;
     }
 
@@ -552,6 +559,7 @@ sub consume_token {
   where => 'WHERE',
   is    => 'TRAIT',
   does  => 'TRAIT',
+  '=>'  => ',',
 );
 
 sub next_token {
@@ -560,7 +568,7 @@ sub next_token {
   return { type => 'NUL' } if $$data =~ m/^\s*$/;
 
   my $re = qr/^ (\s* (?:
-    ( [(){}\[\],=|!?] | :{1,2} ) |
+    ( => | [(){}\[\],=|!?] | :{1,2} ) |
     ( [A-Za-z_][a-zA-Z0-0_-]+ ) |
     ( [\$\%\@] (?: [_A-Za-z][a-zA-Z0-9_]* )? ) |
   ) (?:\s*\#.*?[\r\n])?\s*) /x;
@@ -575,7 +583,7 @@ sub next_token {
 
   my ($orig, $sym, $cls,$var) = ($1,$2,$3, $4);
 
-  return { type => $sym, literal => $sym, orig => $orig }
+  return { type => ($LEXTABLE{$sym} || $sym), literal => $sym, orig => $orig }
     if defined $sym;
 
   if (defined $cls) {

@@ -1,5 +1,9 @@
 Changelog for Parse::Method::Signatures
 
+1.001001 - 2009/01/31
+  - Handle fat commas in TCs (for MooseX::Types::Structured's Dict)
+  - Add missing dep on Test::Differences
+
 1.001000 - 2009/01/31
   - Change how TCs are stored and parse for better support in reconstructing
     types at runtime
