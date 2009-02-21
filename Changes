@@ -1,6 +1,8 @@
 Changelog for Parse::Method::Signatures
 
-  - Will now build a Moose TC object for params
+1.002000 - 2009/02/21
+  - Will now build a Moose TC object for types of params
+  - Add a few more docs
 
 1.001001 - 2009/01/31
   - Handle fat commas in TCs (for MooseX::Types::Structured's Dict)

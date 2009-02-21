@@ -14,7 +14,7 @@ use Carp qw/croak/;
 
 use namespace::clean -except => 'meta';
 
-our $VERSION = '1.001001';
+our $VERSION = '1.002000';
 our %LEXTABLE;
 
 has 'tokens' => (
@@ -269,7 +269,8 @@ sub param {
   my $token = $self->token;
   if (my @tc = $self->tc) {
     my $tc = $self->type_constraint_class->new(
-        str => $tc[1], data => $tc[0],
+        str => $tc[1], 
+        data => $tc[0],
         $self->has_type_constraint_callback
             ? (tc_callback => $self->type_constraint_callback)
             : ()
@@ -668,8 +669,8 @@ deemed useful for L<TryCatch> and L<MooseX::Method::Signatures>.
 
 There are only two public methods to this module, both of which should be
 called as class methods. Both methods accept  either a single (non-ref) scalar
-as the value for the L</input> attribute, or normal new stly arguments (hash or
-hash-ref).
+as the value for the L</input> attribute, or normal new style arguments (hash
+or hash-ref).
 
 =head2 signature
 
