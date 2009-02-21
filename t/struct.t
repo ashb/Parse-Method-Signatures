@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 30;
+use Test::More tests => 34;
 use Test::Differences;
 use Test::Moose;
 
@@ -33,6 +33,10 @@ BEGIN {
     ok(!$param->has_constraints);
 
     does_ok($param, $_) for Positional, Bindable;
+
+    my $tc = $param->type_constraints->tc;
+    isa_ok($tc, 'Moose::Meta::TypeConstraint');
+    is($tc->name, 'Str');
 }
 
 {
@@ -83,6 +87,9 @@ BEGIN {
       }
     );
 
+    my $tc = $param->type_constraints->tc;
+    isa_ok($tc, 'Moose::Meta::TypeConstraint');
+    is($tc->name, $type);
 }
 
 =for later
