@@ -207,7 +207,6 @@ sub unpacked_hash {
     my $param = $self->param
       or $self->assert_token('var'); # not what we are asserting, but should give a useful error message
 
-    $DB::single = 1;
     croak "Cannot have positional parameters in an unpacked-hash: " . $param->to_string
       if $param->sigil eq '$' && PositionalParam->check($param);
 
