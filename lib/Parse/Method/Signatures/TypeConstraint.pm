@@ -52,6 +52,9 @@ sub visit {
         my $type = $self->invoke_callback($data->{-type});
         return $type->parameterize(@params);
     }
+    elsif (exists $data->{-str}) {
+        return $data->{-str};
+    }
     else {
         confess 'failed to visit tc';
     }

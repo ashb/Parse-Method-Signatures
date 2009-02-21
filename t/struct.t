@@ -1,9 +1,10 @@
 use strict;
 use warnings;
 
-use Test::More tests => 34;
+use Test::More tests => 35;
 use Test::Differences;
 use Test::Moose;
+use MooseX::Types::Structured qw/Dict/;
 
 use Parse::Method::Signatures;
 
@@ -87,7 +88,20 @@ BEGIN {
       }
     );
 
-    $param = Parse::Method::Signatures->param('Dict[foo => Int] $foo');
+    my $tc = $param->meta_type_constraint;
+    isa_ok($tc, 'Moose::Meta::TypeConstraint');
+    is($tc->name, $type);
+}
+
+{
+    my $param = Parse::Method::Signatures->param(
+        input => 'Dict[foo => Int] $foo',
+        type_constraint_callback => sub {
+            my ($tc, $name) = @_;
+            return Dict if $name eq 'Dict';
+            return $tc->find_registered_constraint($name);
+        },
+    );
     eq_or_diff($param->type_constraints->data,
       { -type => 'Dict',
         -params => [
@@ -96,10 +110,6 @@ BEGIN {
         ]
       }
     );
-
-    my $tc = $param->meta_type_constraint;
-    isa_ok($tc, 'Moose::Meta::TypeConstraint');
-    is($tc->name, $type);
 }
 
 =for later
