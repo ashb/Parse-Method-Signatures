@@ -34,7 +34,7 @@ BEGIN {
 
     does_ok($param, $_) for Positional, Bindable;
 
-    my $tc = $param->type_constraints->tc;
+    my $tc = $param->meta_type_constraint;
     isa_ok($tc, 'Moose::Meta::TypeConstraint');
     is($tc->name, 'Str');
 }
@@ -87,7 +87,7 @@ BEGIN {
       }
     );
 
-    my $tc = $param->type_constraints->tc;
+    my $tc = $param->meta_type_constraint;
     isa_ok($tc, 'Moose::Meta::TypeConstraint');
     is($tc->name, $type);
 }
