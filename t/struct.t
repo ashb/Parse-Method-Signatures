@@ -62,24 +62,23 @@ BEGIN {
 }
 
 {
-
-    my $param = Parse::Method::Signatures->param('Foo[Corge,Bar|Baz[Moo,Kooh]]|Garply $foo');
+    my $type = 'HashRef[ArrayRef[Moo]|Str]|Num';
+    my $param = Parse::Method::Signatures->param("${type} \$foo");
     eq_or_diff($param->type_constraints->data,
       { 
         -or => [
-          { -type => 'Foo',
+          { -type => 'HashRef',
             -params => [
-              'Corge',
               { -or => [
-                  'Bar',
-                  { -type => 'Baz',
-                    -params => [ qw/Moo Kooh/ ]
-                  }
+                  { -type => 'ArrayRef',
+                    -params => [ qw/Moo/ ]
+                  },
+                  'Str',
                 ]
               }
             ]
           },
-          'Garply'
+          'Num'
         ]
       }
     );
