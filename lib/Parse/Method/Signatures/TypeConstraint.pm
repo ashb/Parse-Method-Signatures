@@ -64,7 +64,6 @@ sub invoke_callback {
 
 sub find_registered_constraint {
     my ($self, $name) = @_;
-    warn $name;
     my $registry = Moose::Util::TypeConstraints->get_type_constraint_registry;
     return $registry->find_type_constraint($name) || $name;
 }
