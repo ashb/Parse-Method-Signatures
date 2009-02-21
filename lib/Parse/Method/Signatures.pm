@@ -9,7 +9,6 @@ use Text::Balanced qw(
 );
 
 use Parse::Method::Signatures::ParamCollection;
-use Parse::Method::Signatures::TypeConstraint;
 use Parse::Method::Signatures::Types qw/PositionalParam NamedParam UnpackedParam/;
 use Carp qw/croak/;
 
@@ -56,6 +55,12 @@ has 'param_class' => (
     default => 'Parse::Method::Signatures::Param',
 );
 
+has 'type_constraint_class' => (
+    is      => 'ro',
+    isa     => Str,
+    default => 'Parse::Method::Signatures::TypeConstraint',
+);
+
 sub BUILD {
     my ($self) = @_;
 
@@ -63,6 +68,7 @@ sub BUILD {
         for map { $self->$_ } qw/
             signature_class
             param_class
+            type_constraint_class
         /;
 }
 
@@ -249,7 +255,7 @@ sub param {
 
   my $token = $self->token;
   if (my @tc = $self->tc) {
-    my $tc = Parse::Method::Signatures::TypeConstraint->new(str => $tc[1], data => $tc[0]);
+    my $tc = $self->type_constraint_class->new(str => $tc[1], data => $tc[0]);
     $param->{type_constraints} = $tc;
     $token = $self->token;
     $consumed = 1;
