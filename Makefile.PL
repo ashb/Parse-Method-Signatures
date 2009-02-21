@@ -19,6 +19,7 @@ test_requires 'aliased';
 test_requires 'Test::More';
 test_requires 'Test::Exception';
 test_requires 'Test::Differences';
+test_requires 'MooseX::Types::Structured';
 
 postamble(<<"EOM");
 testcover: pm_to_blib
