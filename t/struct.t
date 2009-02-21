@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 35;
+use Test::More tests => 36;
 use Test::Differences;
 use Test::Moose;
 use MooseX::Types::Structured qw/Dict/;
@@ -110,6 +110,7 @@ BEGIN {
         ]
       }
     );
+    is($param->meta_type_constraint->name, 'MooseX::Types::Structured::Dict[foo,Int]');
 }
 
 =for later
