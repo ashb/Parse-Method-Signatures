@@ -667,7 +667,9 @@ deemed useful for L<TryCatch> and L<MooseX::Method::Signatures>.
 =head1 METHODS
 
 There are only two public methods to this module, both of which should be
-called as class methods.
+called as class methods. Both methods accept  either a single (non-ref) scalar
+as the value for the L</input> attribute, or normal new stly arguments (hash or
+hash-ref).
 
 =head2 signature
 
@@ -682,6 +684,61 @@ on error.
 
 Attempts to parse the specification for a single parameter. Returns value or
 croaks on error.
+
+=head1 ATTRIBUTES
+
+All the attributes on this class are read-only.
+
+=head2 input
+
+B<Type:> Str
+
+The string to parse.
+
+=head2 offset
+
+B<Type:> Int
+
+Offset into L</input> at which to start parsing. Useful for using with
+Devel::Declare linestring
+
+=head2 signature_class
+
+B<Default:> Parse::Method::Signatures::Sig
+
+B<Type:> Str (loaded on demand class name)
+
+=head2 param_class
+
+B<Default:> Parse::Method::Signatures::Param
+
+B<Type:> Str (loaded on demand class name)
+
+=head2 type_constraint_class
+
+B<Default:> L<Parse::Method::Signatures::TypeConstraint>
+
+B<Type:> Str (loaded on demand class name)
+
+Class that is used to turn the parsed type constraint into an actual
+L<Moose::Meta::TypeConstraint> object.
+
+=head2 type_constraint_callback
+
+B<Type:> Code Ref
+
+Passed to the constructor of L</type_constraint_class>. Default implementation
+of this callback asks Moose for a type constrain matching the name passed in.
+If you have more complex requirements, such as parsing types created by
+L<MooseX::Types> then you will want a callback similar to this:
+
+ # my $target_package defined elsewhere.
+ my $tc_cb = sub {
+   my ($pms_tc, $name) = @_;
+   my $code = $target_package->can($name);
+   $code ? eval { $code->() } 
+         : $pms_tc->find_registered_constraint($name);
+ }
 
 =head1 CAVEATS
 

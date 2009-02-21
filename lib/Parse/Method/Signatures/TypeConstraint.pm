@@ -34,22 +34,22 @@ has tc_callback => (
 
 sub _build_tc {
     my ($self) = @_;
-    return $self->visit($self->data);
+    return $self->_visit($self->data);
 }
 
-sub visit {
+sub _visit {
     my ($self, $data) = @_;
     unless (ref $data) {
-        return $self->invoke_callback($data);
+        return $self->_invoke_callback($data);
     }
     elsif (exists $data->{-or}) {
-        my @types = map { $self->visit($_) } @{ $data->{-or} };
+        my @types = map { $self->_visit($_) } @{ $data->{-or} };
         return @types if scalar @types == 1;
         return Moose::Meta::TypeConstraint::Union->new(type_constraints => \@types);
     }
     elsif (exists $data->{-type}) {
-        my @params = map { $self->visit($_) } @{ $data->{-params} };
-        my $type = $self->invoke_callback($data->{-type});
+        my @params = map { $self->_visit($_) } @{ $data->{-params} };
+        my $type = $self->_invoke_callback($data->{-type});
         return $type->parameterize(@params);
     }
     elsif (exists $data->{-str}) {
@@ -60,7 +60,7 @@ sub visit {
     }
 }
 
-sub invoke_callback {
+sub _invoke_callback {
     my $self = shift;
     $self->tc_callback->($self, @_);
 }
@@ -74,3 +74,54 @@ sub find_registered_constraint {
 __PACKAGE__->meta->make_immutable;
 
 1;
+
+__END__
+
+=head1 NAME
+
+Parse::Method::Signatures::TypeConstraint - turn parse TC data into Moose TC object
+
+=head1 ATTRIBUTES
+
+=head2 str
+
+String representation of the type constraint
+
+=head2 data
+
+A simple hash based representation of the type constraint. Exact details of
+this structure yet to be documented. Read the code if you are interested.
+
+=head2 tc
+
+B<Lazy Build.>
+
+The L<Moose::Meta::TypeConstraint> object for this type constraint, build when
+requested. L</tc_callback> will be called for each individual component type in
+turn.
+
+=head2 tc_callback
+
+B<Type:> CodeRef
+
+Callback used to turn type names into type objects. See
+L<Parse::Method::Signatures/type_constraint_callback> for more details and an
+example.
+
+=head1 METHODS
+
+=head2 find_registered_constraint
+
+Simply asks the L<Moose::Meta::TypeConstraint::Registry> for a type with the
+given name.
+
+=head1 AUTHORS
+
+Florian Ragwitz <rafl@debian.org>.
+
+Ash Berlin <ash@cpan.org>.
+
+=head1 LICENSE
+
+Licensed under the same terms as Perl itself.
+
