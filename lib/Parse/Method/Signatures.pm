@@ -1,7 +1,7 @@
 package Parse::Method::Signatures;
 
 use Moose;
-use MooseX::Types::Moose qw/ArrayRef HashRef ScalarRef Int Str/;
+use MooseX::Types::Moose qw/ArrayRef HashRef ScalarRef CodeRef Int Str/;
 use Text::Balanced qw(
   extract_codeblock
   extract_variable
@@ -59,6 +59,12 @@ has 'type_constraint_class' => (
     is      => 'ro',
     isa     => Str,
     default => 'Parse::Method::Signatures::TypeConstraint',
+);
+
+has 'type_constraint_callback' => (
+    is        => 'ro',
+    isa       => CodeRef,
+    predicate => 'has_type_constraint_callback',
 );
 
 sub BUILD {
@@ -254,7 +260,12 @@ sub param {
 
   my $token = $self->token;
   if (my @tc = $self->tc) {
-    my $tc = $self->type_constraint_class->new(str => $tc[1], data => $tc[0]);
+    my $tc = $self->type_constraint_class->new(
+        str => $tc[1], data => $tc[0],
+        $self->has_type_constraint_callback
+            ? (tc_callback => $self->type_constraint_callback)
+            : ()
+    );
     $param->{type_constraints} = $tc;
     $token = $self->token;
     $consumed = 1;
