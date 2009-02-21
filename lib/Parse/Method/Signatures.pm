@@ -96,6 +96,14 @@ sub create_param {
     return $self->param_class->new_with_traits(traits => \@traits, %{ $args });
 }
 
+override BUILDARGS => sub {
+  my $class = shift;
+
+  return { input => $_[0] } if @_ == 1 and !ref $_[0];
+
+  return super();
+};
+
 # signature: O_PAREN
 #            invocant
 #            params
@@ -109,7 +117,7 @@ sub create_param {
 sub signature {
   my $self = shift;
 
-  $self = $self->new(@_ == 1 ? (input => $_[0]) : @_);
+  $self = $self->new(@_) unless blessed($self);
 
   $self->assert_token('(');
 
@@ -251,7 +259,7 @@ sub param {
   my $self = shift;
   my $class_meth;
   unless (blessed($self)) {
-    $self = $self->new( @_ == 1 ? (input => $_[0]) : @_);
+    $self = $self->new(@_) unless blessed($self);
     $class_meth = 1;
   }
 
