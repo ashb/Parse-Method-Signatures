@@ -24,6 +24,9 @@ has type_constraints => (
     is         => 'ro',
     isa        => 'Parse::Method::Signatures::TypeConstraint',
     predicate  => 'has_type_constraints',
+    handles    => {
+        meta_type_constraint => 'tc'
+    },
 );
 
 has default_value => (

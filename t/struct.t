@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 31;
+use Test::More tests => 34;
 use Test::Differences;
 use Test::Moose;
 
@@ -33,6 +33,10 @@ BEGIN {
     ok(!$param->has_constraints);
 
     does_ok($param, $_) for Positional, Bindable;
+
+    my $tc = $param->meta_type_constraint;
+    isa_ok($tc, 'Moose::Meta::TypeConstraint');
+    is($tc->name, 'Str');
 }
 
 {
@@ -62,24 +66,23 @@ BEGIN {
 }
 
 {
-
-    my $param = Parse::Method::Signatures->param('Foo[Corge,Bar|Baz[Moo,Kooh]]|Garply $foo');
+    my $type = 'HashRef[ArrayRef[Moo]|Str]|Num';
+    my $param = Parse::Method::Signatures->param("${type} \$foo");
     eq_or_diff($param->type_constraints->data,
       { 
         -or => [
-          { -type => 'Foo',
+          { -type => 'HashRef',
             -params => [
-              'Corge',
               { -or => [
-                  'Bar',
-                  { -type => 'Baz',
-                    -params => [ qw/Moo Kooh/ ]
-                  }
+                  { -type => 'ArrayRef',
+                    -params => [ qw/Moo/ ]
+                  },
+                  'Str',
                 ]
               }
             ]
           },
-          'Garply'
+          'Num'
         ]
       }
     );
@@ -93,6 +96,10 @@ BEGIN {
         ]
       }
     );
+
+    my $tc = $param->meta_type_constraint;
+    isa_ok($tc, 'Moose::Meta::TypeConstraint');
+    is($tc->name, $type);
 }
 
 =for later
