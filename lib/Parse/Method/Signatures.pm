@@ -269,7 +269,7 @@ sub param {
   my $token = $self->token;
   if (my @tc = $self->tc) {
     my $tc = $self->type_constraint_class->new(
-        str => $tc[1], 
+        str => $tc[1],
         data => $tc[0],
         $self->has_type_constraint_callback
             ? (tc_callback => $self->type_constraint_callback)
@@ -470,8 +470,15 @@ sub _variable_like {
 
 sub tc {
   my ($self, $required) = @_;
-  my $data = $self->_input;
+  my ($tc, $tc_str);
 
+  my $state = $self->_ident($required) or return;
+  $state = $self->_tc_params($state);
+  @{$self->_tc_alternation($state)};
+}
+
+sub _ident {
+  my($self, $required) = @_;
   my $token = $self->token;
 
   my $tc_str = $token->{literal};
@@ -494,56 +501,62 @@ sub tc {
     }
     $full .= $token->{orig};
     croak "Invalid spacing in type constraint after '$tc_str'\n"
-      if ($full =~ /\s::|::\s/ms);
+    if ($full =~ /\s::|::\s/ms);
     $tc_str .= $self->consume_token->{literal};
   }
+  return $tc_str;
+}
 
-  $token = $self->token;
+sub _tc_params {
+  my($self, $tc_str) = @_;
+  my $token = $self->token;
+
+  return([$tc_str, $tc_str]) unless $token->{type} eq '[';
 
   my $tc = $tc_str;
-  if ($token->{type} eq '[') {
-    $tc_str .= '[';
+  $tc_str .= '[';
+  $self->consume_token;
+
+  my @params = ($self->tc(1));
+  $tc_str .= pop @params;
+
+  while ($self->token->{type} eq ',') {
+    my $lit = $self->consume_token->{literal};
+
+    my ($sub, $str) = $self->tc(1);
+
+    # Turn previous arg into explicit str if followed by a fat comma
+    if ($lit eq '=>' && !ref $params[-1]) {
+      $params[-1] = { -str => $params[-1] };
+    }
+    push @params, $sub;
+
+    $tc_str .= "," . $str;
+  }
+
+  $self->assert_token(']');
+  $tc_str .= ']';
+
+  $tc = { -type => $tc, -params => \@params };
+  return [$tc, $tc_str];
+}
+
+sub _tc_alternation {
+  my $self = shift;
+  my ($tc, $tc_str) = @{$_[0]};
+  return([$tc, $tc_str]) unless $self->token->{type} eq '|';
+
+  my @tcs = ( $tc );
+
+  while ($self->token->{type} eq '|') {
+    $tc_str .= '|';
     $self->consume_token;
-
-    my @params = ($self->tc(1));
-    $tc_str .= pop @params;
-
-    while ($self->token->{type} eq ',') {
-      my $lit = $self->consume_token->{literal};
-
-      my ($sub, $str) = $self->tc(1);
-
-      # Turn previous arg into explicit str if followed by a fat comma
-      if ($lit eq '=>' && !ref $params[-1]) {
-        $params[-1] = { -str => $params[-1] };
-      }
-      push @params, $sub;
-      
-      $tc_str .= "," . $str;
-    }
-
-    $self->assert_token(']');
-    $tc_str .= ']';
-
-    $tc = { -type => $tc, -params => \@params };
+    my ($sub, $str) = $self->tc(1);
+    push @tcs, $sub;
+    $tc_str .= $str;
   }
 
-  if ($self->token->{type} eq '|') {
-    my @tcs = ( $tc );
-
-    while ($self->token->{type} eq '|') {
-      $tc_str .= '|';
-      $self->consume_token;
-      my ($sub, $str) = $self->tc(1);
-      push @tcs, $sub;
-      $tc_str .= $str;
-    }
-
-    return ({ -or => \@tcs }, $tc_str);
-
-  } else {
-    return ($tc, $tc_str);
-  }
+  return [{ -or => \@tcs }, $tc_str];
 }
 
 sub assert_token {
@@ -587,9 +600,39 @@ sub consume_token {
   '=>'  => ',',
 );
 
+sub _null_token {
+    { type => 'NUL' }
+}
+
+sub _symbol_token {
+    my ($self, $sym, $orig) = @_;
+    return unless $sym;
+
+    $self->_make_token(($LEXTABLE{$sym} || $sym), $sym, $orig);
+}
+
+sub _class_token {
+    my ($self, $cls, $orig) = @_;
+    return unless $cls;
+
+    $self->_make_token(($LEXTABLE{$cls} || 'ident'), $cls, $orig);
+}
+
+sub _var_token {
+    my ($self, $var, $orig) = @_;
+    return unless $var;
+    $self->_make_token('var', $var, $orig);
+}
+
+sub _make_token {
+    my ($self, $type, $literal, $orig) = @_;
+
+    {type => $type, literal => $literal, orig => $orig}
+}
+
 sub next_token {
   my ($self, $data) = @_;
- 
+
   return { type => 'NUL' } if $$data =~ m/^\s*$/;
 
   my $re = qr/^ (\s* (?:
@@ -608,23 +651,9 @@ sub next_token {
 
   my ($orig, $sym, $cls,$var) = ($1,$2,$3, $4);
 
-  return { type => ($LEXTABLE{$sym} || $sym), literal => $sym, orig => $orig }
-    if defined $sym;
-
-  if (defined $cls) {
-
-    return {
-      type => $LEXTABLE{$cls} || 'ident',
-      literal => $cls,
-      orig => $orig
-    };
-  }
-
-  return { type => 'var', literal => $var, orig => $orig }
-    if $var;
-
-  croak "Error parsing signature at '" . substr($orig . $$data, 0, 10) . "'";
-
+     $self->_symbol_token($sym, $orig)
+  || $self->_class_token($cls, $orig)
+  || $self->_var_token($var, $orig);
 }
 
 

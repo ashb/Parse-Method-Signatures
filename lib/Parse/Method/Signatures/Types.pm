@@ -25,10 +25,6 @@ subtype VariableName,
 subtype TypeConstraint,
     as 'Moose::Meta::TypeConstraint';
 
-coerce TypeConstraint,
-    from Str,
-    via { find_or_parse_type_constraint($_) };
-
 class_type Param, { class => 'Parse::Method::Signatures::Param' };
 
 class_type ParamCollection, { class => 'Parse::Method::Signatures::ParamCollection' };
