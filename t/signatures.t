@@ -87,6 +87,9 @@ my @alternative = (
     ['(:$x = "foo")',           '(:$x = "foo")',           'default value stringifies okay'],
     ['($self: $moo)',           '($self: $moo)',           'invocant and positional'],
     ['(Animal | Human $affe)',  '(Animal|Human $affe)',    'type constraint alternative with whitespace'],
+    ['(HashRef[foo => Str] $foo)',
+                                '(HashRef[foo,Str] $foo)', 'Hash with required key'],
+#    ['(HashRef[0 => Str] $foo)','(HashRef[0,Str] $foo)',   'Hash with pathological defaults'],
 );
 
 my @invalid = (

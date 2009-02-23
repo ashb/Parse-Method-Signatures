@@ -264,94 +264,96 @@ sub param {
   }
 
   my $param = {};
-  my $consumed = 0;
 
-  my $token = $self->token;
-  if (my @tc = $self->tc) {
-    my $tc = $self->type_constraint_class->new(
-        str => $tc[1],
-        data => $tc[0],
-        $self->has_type_constraint_callback
-            ? (tc_callback => $self->type_constraint_callback)
-            : ()
-    );
-    $param->{type_constraints} = $tc;
-    $token = $self->token;
-    $consumed = 1;
-  }
-
-  if ($token->{type} eq ':') {
-    $param->{named} = 1;
-    $self->consume_token;
-    $token = $self->token;
-    $consumed = 1;
-
-    # Probably a label
-    if ($token->{type} eq 'ident') {
-      $param->{label} = $self->consume_token->{literal};
-
-      $self->assert_token('(');
-      $token = $self->token;
+  $self->_param_possibly_labeled(
+    $param, $self->_param_tc($param, 0),
+    sub {
+      my $consumed = shift;
+      $self->_param_array($param)
+      || $self->_param_hash($param)
+      || $self->_param_variable($param, $consumed)
     }
-  }
+  ) || return;
 
-  # positionals are required by default, named params aren't
+  $self->_param_required_or_optional($param);
+  $self->_param_default_value($param);
+  $self->_param_constraints($param);
+  $self->_param_traits($param);
+
+  #use Data::Dumper; $Data::Dumper::Indent = 1;warn Dumper($param);
+  $param = $self->create_param($param);
+  if ($class_meth) {
+    return wantarray ? ($param, $self->remaining_input) : $param;
+  } else {
+    return $param
+  }
+}
+
+sub _param_tc {
+  my ($self, $param, $consumed) = @_;
+  my @tc = $self->tc;
+  return $consumed unless @tc;
+
+  my $tc = $self->type_constraint_class->new(
+    str  => $tc[1],
+    data => $tc[0],
+    $self->has_type_constraint_callback
+      ? (tc_callback => $self->type_constraint_callback)
+      : ()
+  );
+  $param->{type_constraints} = $tc;
+  return 1;
+}
+
+sub _param_colon_label {
+  my ($self, $param, $consumed) = @_;
+  $self->token->{type} eq ':' or return $consumed;
+
+  $param->{named} = 1;
+  $self->consume_token;
+
+  # Probably a label
+  if ($self->token->{type} eq 'ident') {
+    $param->{label} = $self->consume_token->{literal};
+
+    $self->assert_token('(');
+  }
+  return 1;
+}
+
+sub _param_possibly_labeled {
+  my ($self, $param, $consumed, $inner_parser) = @_;
+  $consumed = $self->_param_colon_label($param, $consumed);
   $param->{required} = !$param->{named};
 
-  #use Data::Dumper; warn Dumper($param, $token);
-  if ($token->{type} eq '[') {
-    croak "Label required for named non-scalar param"
-      if $param->{named} && !defined $param->{label};
+  return unless $inner_parser->($consumed);
 
-    $param->{params} = $self->unpacked_array;
-    $param->{sigil} = '$';
-    $param->{unpacking} = 'Array';
-  } elsif ($token->{type} eq '{') {
-    croak "Label required for named non-scalar param"
-      if $param->{named} && !defined $param->{label};
+  $self->assert_token(')') if defined($param->{label});
+  1;
+}
 
-    $param->{params} = $self->unpacked_hash;
-    $param->{sigil} = '$';
-    $param->{unpacking} = 'Hash';
-  } elsif ($consumed || $token->{type} eq 'var') {
-    $param->{variable_name} = $self->assert_token('var')->{literal};
-    $param->{sigil} = substr($param->{variable_name}, 0, 1);
-
-    croak "Label required for named non-scalar param"
-      if $param->{variable_name} !~ /^\$/ && 
-         $param->{named} && !defined $param->{label};
-
-  } else {
-    return;
-  }
-
-  if (defined $param->{label}) {
-    $self->assert_token(')');
-  }
-
-
-  $token = $self->token;
-
-  if ($token->{type} eq '?') {
-    $param->{required} = 0;
+sub _param_required_or_optional {
+  my ($self, $param) = @_;
+  my $token = $self->token;
+  if ($token->{type} =~ /[\?!]/) {
+    $param->{required} = ($token->{type} eq '!');
     $self->consume_token;
-    $token = $self->token;
-  } elsif ($token->{type} eq '!') {
-    $param->{required} = 1;
-    $self->consume_token;
-    $token = $self->token;
   }
+  return $param;
+}
 
-  if ($token->{type} eq '=') {
-    # default value
-    $self->consume_token;
+sub _param_default_value {
+  my ($self, $param) = @_;
+  return $param unless $self->token->{type} eq '=';
+  $self->consume_token;
 
-    $param->{default_value} = $self->value_ish();
+  $param->{default_value} = $self->value_ish();
+  return $param;
+}
 
-    $token = $self->token;
-  }
-
-  while ($token->{type} eq 'WHERE') {
+sub _param_constraints {
+  my ($self, $param) = @_;
+  while ($self->token->{type} eq 'WHERE') {
     $self->consume_token;
 
     $param->{constraints} ||= [];
@@ -362,10 +364,12 @@ sub param {
 
     substr(${$self->_input}, 0, length($code), '');
     push @{$param->{constraints}}, $code;
-
-    $token = $self->token;
   }
+}
 
+sub _param_traits {
+  my ($self, $param) = @_;
+  my $token = $self->token;
   while ($token->{type} eq 'TRAIT') {
     $self->consume_token;
     my $trait = $self->assert_token('ident')->{literal};
@@ -374,14 +378,44 @@ sub param {
     push @{$param->{param_traits}}, [$token->{literal} => $trait];
     $token = $self->token;
   }
+}
 
-  #use Data::Dumper; $Data::Dumper::Indent = 1;warn Dumper($param);
-  $param = $self->create_param($param);
-  if ($class_meth) {
-    return wantarray ? ($param, $self->remaining_input) : $param;
-  } else {
-    return $param
-  }
+sub _param_array {
+  my ($self, $param) = @_;
+  return unless $self->token->{type} eq '[';
+
+  croak "Label required for named non-scalar param"
+    if $param->{named} && !defined $param->{label};
+
+  $param->{params} = $self->unpacked_array;
+  $param->{sigil} = '$';
+  $param->{unpacking} = 'Array';
+}
+
+sub _param_hash {
+  my ($self, $param) = @_;
+  return unless $self->token->{type} eq '{';
+
+  croak "Label required for named non-scalar param"
+    if $param->{named} && !defined $param->{label};
+
+  $param->{params} = $self->unpacked_hash;
+  $param->{sigil} = '$';
+  $param->{unpacking} = 'Hash';
+}
+
+sub _param_variable {
+  my ($self, $param, $consumed) = @_;
+  return unless $consumed || $self->token->{type} eq 'var';
+
+  $param->{variable_name} = $self->assert_token('var')->{literal};
+  $param->{sigil} = substr($param->{variable_name}, 0, 1);
+
+  croak "Label required for named non-scalar param"
+    if $param->{variable_name} !~ /^\$/ &&
+       $param->{named} && !defined $param->{label};
+
+  return 1;
 }
 
 # Used by default production.
