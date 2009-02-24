@@ -6,6 +6,7 @@ use Text::Balanced qw(
   extract_codeblock
   extract_variable
   extract_quotelike
+  extract_bracketed
 );
 
 use Parse::Method::Signatures::ParamCollection;
@@ -346,8 +347,13 @@ sub param {
     # default value
     $self->consume_token;
 
-    $param->{default_value} = $self->value_ish();
+    my $val = $param->{default_value} = $self->value_ish();
 
+    if (!defined $val) {
+      croak "Error parsing default value at '" .
+            substr($self->remaining_input, 0, 10) .
+            "'";
+    }
     $token = $self->token;
   }
 
@@ -399,8 +405,9 @@ sub value_ish {
   my $num = $self->_number_like;
   return $num if defined $num;
 
-  my $default = $self->_quote_like || $self->_variable_like;
-  return $default;
+  return  $self->_quote_like ||
+          $self->_balanced_perl_like ||
+          $self->_variable_like;
 }
 
 sub _number_like {
@@ -439,7 +446,29 @@ sub _quote_like {
 
   my @quote = extract_quotelike($$data);
 
-  return if blessed $@ && $@->{error} =~ /^No quotelike operator found after prefix/;
+  return undef if blessed $@ && $@->{error} =~ /^No quotelike operator found after prefix/;
+
+  croak "$@" if $@;
+  return unless $quote[0];
+
+  my $op = $quote[3] || $quote[4];
+
+  my %whitelist = map { $_ => 1 } qw(q qq qw qr " ');
+  croak "rejected quotelike operator: $op" unless $whitelist{$op};
+
+  substr($$data, 0, length $quote[0], '');
+
+  return $quote[0];
+}
+
+sub _balanced_perl_like {
+  my ($self) = @_;
+
+  my $data = $self->_input;
+
+  my @quote = extract_bracketed($$data);
+
+  return undef if blessed $@ && $@->{error} =~ /^No quotelike operator found after prefix/;
 
   croak "$@" if $@;
   return unless $quote[0];
@@ -462,6 +491,7 @@ sub _variable_like {
     $self->consume_token;
     return $token->{literal};
   }
+  return; 
 }
 
 # tc: CLASS ('::' CLASS)*

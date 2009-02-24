@@ -58,6 +58,7 @@ my @sigs = (
     ['(%x)',                    'positinal hash'],
     ['($x, %y)',                'positinal scalar and hash'],
     ['([$x, $y])',              'simple array ref unpacking'],
+    ['(ArrayRef [$x, $y])',     'simple array ref unpacking with unparameterized type', 'TODO'],
     ['([@x])',                  'array ref unpacking into array'],
     ['([$x, $y, @rest])',       'array ref unpacking into scalars and arrays'],
     ['($x, [$y, $z, @rest])',   'array ref unpacking combined with normal positionals'],
@@ -79,6 +80,10 @@ my @sigs = (
     ['(:$foo does coerce)',     'named with traits (does)'],
     ['($foo is copy is ro does coerce)',
                                 'multiple traits'],
+
+    ['($x = "foo")',            'string default'],
+    ['($x = q"fo)o")',          'string default'],
+    ['($x = [ ]")',             'simple array default'],
 );
 
 my @alternative = (
