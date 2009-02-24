@@ -348,7 +348,7 @@ sub _param_default_value {
   return $param unless $self->token->{type} eq '=';
   $self->consume_token;
 
-  $param->{default_value} = $self->value_ish();
+  my $val = $param->{default_value} = $self->value_ish();
   if (!defined $val) {
     croak "Error parsing default value at '" .
           substr($self->remaining_input, 0, 10) .
@@ -440,7 +440,7 @@ sub value_ish {
   return $num if defined $num;
 
   return  $self->_quote_like ||
-          $self->_balanced_perl_like ||
+          #$self->_balanced_perl_like ||
           $self->_variable_like;
 }
 

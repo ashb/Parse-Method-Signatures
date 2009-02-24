@@ -83,7 +83,7 @@ my @sigs = (
 
     ['($x = "foo")',            'string default'],
     ['($x = q"fo)o")',          'string default'],
-    ['($x = [ ]")',             'simple array default'],
+    ['($x = [ ]")',             'simple array default', 'TODO'],
 );
 
 my @alternative = (
