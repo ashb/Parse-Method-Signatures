@@ -34,30 +34,53 @@ has tc_callback => (
 
 sub _build_tc {
     my ($self) = @_;
-    return $self->_visit($self->data);
+    return $self->_walk_data($self->data);
 }
 
-sub _visit {
+sub _walk_data {
     my ($self, $data) = @_;
-    unless (ref $data) {
-        return $self->_invoke_callback($data);
-    }
-    elsif (exists $data->{-or}) {
-        my @types = map { $self->_visit($_) } @{ $data->{-or} };
-        return @types if scalar @types == 1;
-        return Moose::Meta::TypeConstraint::Union->new(type_constraints => \@types);
-    }
-    elsif (exists $data->{-type}) {
-        my @params = map { $self->_visit($_) } @{ $data->{-params} };
-        my $type = $self->_invoke_callback($data->{-type});
-        return $type->parameterize(@params);
-    }
-    elsif (exists $data->{-str}) {
-        return $data->{-str};
-    }
-    else {
-        confess 'failed to visit tc';
-    }
+
+    my $res = $self->_leaf($data)
+           || $self->_union_node($data)
+           || $self->_params_node($data)
+           || $self->_str_node($data)
+      or confess 'failed to visit tc';
+    return $res->();
+}
+
+sub _leaf {
+    my ($self, $data) = @_;
+    return if ref($data);
+
+    sub { $self->_invoke_callback($data) };
+}
+
+sub _union_node {
+    my ($self, $data) = @_;
+    return unless exists $data->{-or};
+
+    my @types = map { $self->_walk_data($_) } @{ $data->{-or} };
+    sub {
+      scalar @types == 1 ? @types
+        : Moose::Meta::TypeConstraint::Union->new(type_constraints => \@types)
+    };
+}
+
+sub _params_node {
+    my ($self, $data) = @_;
+    return unless exists $data->{-type};
+
+    my @params = map { $self->_walk_data($_) } @{ $data->{-params} };
+    my $type = $self->_invoke_callback($data->{-type});
+    sub { $type->parameterize(@params) }
+}
+
+
+sub _str_node {
+    my ($self, $data) = @_;
+    return unless exists $data->{-str};
+
+    sub { $data->{-str} };
 }
 
 sub _invoke_callback {

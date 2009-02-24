@@ -265,99 +265,101 @@ sub param {
   }
 
   my $param = {};
-  my $consumed = 0;
 
-  my $token = $self->token;
-  if (my @tc = $self->tc) {
-    my $tc = $self->type_constraint_class->new(
-        str => $tc[1], 
-        data => $tc[0],
-        $self->has_type_constraint_callback
-            ? (tc_callback => $self->type_constraint_callback)
-            : ()
-    );
-    $param->{type_constraints} = $tc;
-    $token = $self->token;
-    $consumed = 1;
-  }
-
-  if ($token->{type} eq ':') {
-    $param->{named} = 1;
-    $self->consume_token;
-    $token = $self->token;
-    $consumed = 1;
-
-    # Probably a label
-    if ($token->{type} eq 'ident') {
-      $param->{label} = $self->consume_token->{literal};
-
-      $self->assert_token('(');
-      $token = $self->token;
+  $self->_param_possibly_labeled(
+    $param, $self->_param_tc($param, 0),
+    sub {
+      my $consumed = shift;
+      $self->_param_array($param)
+      || $self->_param_hash($param)
+      || $self->_param_variable($param, $consumed)
     }
-  }
+  ) || return;
 
-  # positionals are required by default, named params aren't
+  $self->_param_required_or_optional($param);
+  $self->_param_default_value($param);
+  $self->_param_constraints($param);
+  $self->_param_traits($param);
+
+  #use Data::Dumper; $Data::Dumper::Indent = 1;warn Dumper($param);
+  $param = $self->create_param($param);
+  if ($class_meth) {
+    return wantarray ? ($param, $self->remaining_input) : $param;
+  } else {
+    return $param
+  }
+}
+
+sub _param_tc {
+  my ($self, $param, $consumed) = @_;
+  my @tc = $self->tc;
+  return $consumed unless @tc;
+
+  my $tc = $self->type_constraint_class->new(
+    str  => $tc[1],
+    data => $tc[0],
+    $self->has_type_constraint_callback
+      ? (tc_callback => $self->type_constraint_callback)
+      : ()
+  );
+  $param->{type_constraints} = $tc;
+  return 1;
+}
+
+sub _param_colon_label {
+  my ($self, $param, $consumed) = @_;
+  $self->token->{type} eq ':' or return $consumed;
+
+  $param->{named} = 1;
+  $self->consume_token;
+
+  # Probably a label
+  if ($self->token->{type} eq 'ident') {
+    $param->{label} = $self->consume_token->{literal};
+
+    $self->assert_token('(');
+  }
+  return 1;
+}
+
+sub _param_possibly_labeled {
+  my ($self, $param, $consumed, $inner_parser) = @_;
+  $consumed = $self->_param_colon_label($param, $consumed);
   $param->{required} = !$param->{named};
 
-  #use Data::Dumper; warn Dumper($param, $token);
-  if ($token->{type} eq '[') {
-    croak "Label required for named non-scalar param"
-      if $param->{named} && !defined $param->{label};
+  return unless $inner_parser->($consumed);
 
-    $param->{params} = $self->unpacked_array;
-    $param->{sigil} = '$';
-    $param->{unpacking} = 'Array';
-  } elsif ($token->{type} eq '{') {
-    croak "Label required for named non-scalar param"
-      if $param->{named} && !defined $param->{label};
+  $self->assert_token(')') if defined($param->{label});
+  1;
+}
 
-    $param->{params} = $self->unpacked_hash;
-    $param->{sigil} = '$';
-    $param->{unpacking} = 'Hash';
-  } elsif ($consumed || $token->{type} eq 'var') {
-    $param->{variable_name} = $self->assert_token('var')->{literal};
-    $param->{sigil} = substr($param->{variable_name}, 0, 1);
-
-    croak "Label required for named non-scalar param"
-      if $param->{variable_name} !~ /^\$/ && 
-         $param->{named} && !defined $param->{label};
-
-  } else {
-    return;
-  }
-
-  if (defined $param->{label}) {
-    $self->assert_token(')');
-  }
-
-
-  $token = $self->token;
-
-  if ($token->{type} eq '?') {
-    $param->{required} = 0;
+sub _param_required_or_optional {
+  my ($self, $param) = @_;
+  my $token = $self->token;
+  if ($token->{type} =~ /[\?!]/) {
+    $param->{required} = ($token->{type} eq '!');
     $self->consume_token;
-    $token = $self->token;
-  } elsif ($token->{type} eq '!') {
-    $param->{required} = 1;
-    $self->consume_token;
-    $token = $self->token;
   }
+  return $param;
+}
 
-  if ($token->{type} eq '=') {
-    # default value
-    $self->consume_token;
+sub _param_default_value {
+  my ($self, $param) = @_;
+  return $param unless $self->token->{type} eq '=';
+  $self->consume_token;
 
-    my $val = $param->{default_value} = $self->value_ish();
-
-    if (!defined $val) {
-      croak "Error parsing default value at '" .
-            substr($self->remaining_input, 0, 10) .
-            "'";
-    }
-    $token = $self->token;
+  $param->{default_value} = $self->value_ish();
+  if (!defined $val) {
+    croak "Error parsing default value at '" .
+          substr($self->remaining_input, 0, 10) .
+          "'";
   }
+  return $param;
+}
 
-  while ($token->{type} eq 'WHERE') {
+sub _param_constraints {
+  my ($self, $param) = @_;
+  while ($self->token->{type} eq 'WHERE') {
     $self->consume_token;
 
     $param->{constraints} ||= [];
@@ -368,10 +370,12 @@ sub param {
 
     substr(${$self->_input}, 0, length($code), '');
     push @{$param->{constraints}}, $code;
-
-    $token = $self->token;
   }
+}
 
+sub _param_traits {
+  my ($self, $param) = @_;
+  my $token = $self->token;
   while ($token->{type} eq 'TRAIT') {
     $self->consume_token;
     my $trait = $self->assert_token('ident')->{literal};
@@ -380,14 +384,44 @@ sub param {
     push @{$param->{param_traits}}, [$token->{literal} => $trait];
     $token = $self->token;
   }
+}
 
-  #use Data::Dumper; $Data::Dumper::Indent = 1;warn Dumper($param);
-  $param = $self->create_param($param);
-  if ($class_meth) {
-    return wantarray ? ($param, $self->remaining_input) : $param;
-  } else {
-    return $param
-  }
+sub _param_array {
+  my ($self, $param) = @_;
+  return unless $self->token->{type} eq '[';
+
+  croak "Label required for named non-scalar param"
+    if $param->{named} && !defined $param->{label};
+
+  $param->{params} = $self->unpacked_array;
+  $param->{sigil} = '$';
+  $param->{unpacking} = 'Array';
+}
+
+sub _param_hash {
+  my ($self, $param) = @_;
+  return unless $self->token->{type} eq '{';
+
+  croak "Label required for named non-scalar param"
+    if $param->{named} && !defined $param->{label};
+
+  $param->{params} = $self->unpacked_hash;
+  $param->{sigil} = '$';
+  $param->{unpacking} = 'Hash';
+}
+
+sub _param_variable {
+  my ($self, $param, $consumed) = @_;
+  return unless $consumed || $self->token->{type} eq 'var';
+
+  $param->{variable_name} = $self->assert_token('var')->{literal};
+  $param->{sigil} = substr($param->{variable_name}, 0, 1);
+
+  croak "Label required for named non-scalar param"
+    if $param->{variable_name} !~ /^\$/ &&
+       $param->{named} && !defined $param->{label};
+
+  return 1;
 }
 
 # Used by default production.
@@ -500,8 +534,15 @@ sub _variable_like {
 
 sub tc {
   my ($self, $required) = @_;
-  my $data = $self->_input;
+  my ($tc, $tc_str);
 
+  my $state = $self->_ident($required) or return;
+  $state = $self->_tc_params($state);
+  @{$self->_tc_alternation($state)};
+}
+
+sub _ident {
+  my($self, $required) = @_;
   my $token = $self->token;
 
   my $tc_str = $token->{literal};
@@ -524,56 +565,62 @@ sub tc {
     }
     $full .= $token->{orig};
     croak "Invalid spacing in type constraint after '$tc_str'\n"
-      if ($full =~ /\s::|::\s/ms);
+    if ($full =~ /\s::|::\s/ms);
     $tc_str .= $self->consume_token->{literal};
   }
+  return $tc_str;
+}
 
-  $token = $self->token;
+sub _tc_params {
+  my($self, $tc_str) = @_;
+  my $token = $self->token;
+
+  return([$tc_str, $tc_str]) unless $token->{type} eq '[';
 
   my $tc = $tc_str;
-  if ($token->{type} eq '[') {
-    $tc_str .= '[';
+  $tc_str .= '[';
+  $self->consume_token;
+
+  my @params = ($self->tc(1));
+  $tc_str .= pop @params;
+
+  while ($self->token->{type} eq ',') {
+    my $lit = $self->consume_token->{literal};
+
+    my ($sub, $str) = $self->tc(1);
+
+    # Turn previous arg into explicit str if followed by a fat comma
+    if ($lit eq '=>' && !ref $params[-1]) {
+      $params[-1] = { -str => $params[-1] };
+    }
+    push @params, $sub;
+
+    $tc_str .= "," . $str;
+  }
+
+  $self->assert_token(']');
+  $tc_str .= ']';
+
+  $tc = { -type => $tc, -params => \@params };
+  return [$tc, $tc_str];
+}
+
+sub _tc_alternation {
+  my $self = shift;
+  my ($tc, $tc_str) = @{$_[0]};
+  return([$tc, $tc_str]) unless $self->token->{type} eq '|';
+
+  my @tcs = ( $tc );
+
+  while ($self->token->{type} eq '|') {
+    $tc_str .= '|';
     $self->consume_token;
-
-    my @params = ($self->tc(1));
-    $tc_str .= pop @params;
-
-    while ($self->token->{type} eq ',') {
-      my $lit = $self->consume_token->{literal};
-
-      my ($sub, $str) = $self->tc(1);
-
-      # Turn previous arg into explicit str if followed by a fat comma
-      if ($lit eq '=>' && !ref $params[-1]) {
-        $params[-1] = { -str => $params[-1] };
-      }
-      push @params, $sub;
-      
-      $tc_str .= "," . $str;
-    }
-
-    $self->assert_token(']');
-    $tc_str .= ']';
-
-    $tc = { -type => $tc, -params => \@params };
+    my ($sub, $str) = $self->tc(1);
+    push @tcs, $sub;
+    $tc_str .= $str;
   }
 
-  if ($self->token->{type} eq '|') {
-    my @tcs = ( $tc );
-
-    while ($self->token->{type} eq '|') {
-      $tc_str .= '|';
-      $self->consume_token;
-      my ($sub, $str) = $self->tc(1);
-      push @tcs, $sub;
-      $tc_str .= $str;
-    }
-
-    return ({ -or => \@tcs }, $tc_str);
-
-  } else {
-    return ($tc, $tc_str);
-  }
+  return [{ -or => \@tcs }, $tc_str];
 }
 
 sub assert_token {
@@ -617,9 +664,39 @@ sub consume_token {
   '=>'  => ',',
 );
 
+sub _null_token {
+    { type => 'NUL' }
+}
+
+sub _symbol_token {
+    my ($self, $sym, $orig) = @_;
+    return unless $sym;
+
+    $self->_make_token(($LEXTABLE{$sym} || $sym), $sym, $orig);
+}
+
+sub _class_token {
+    my ($self, $cls, $orig) = @_;
+    return unless $cls;
+
+    $self->_make_token(($LEXTABLE{$cls} || 'ident'), $cls, $orig);
+}
+
+sub _var_token {
+    my ($self, $var, $orig) = @_;
+    return unless $var;
+    $self->_make_token('var', $var, $orig);
+}
+
+sub _make_token {
+    my ($self, $type, $literal, $orig) = @_;
+
+    {type => $type, literal => $literal, orig => $orig}
+}
+
 sub next_token {
   my ($self, $data) = @_;
- 
+
   return { type => 'NUL' } if $$data =~ m/^\s*$/;
 
   my $re = qr/^ (\s* (?:
@@ -638,23 +715,9 @@ sub next_token {
 
   my ($orig, $sym, $cls,$var) = ($1,$2,$3, $4);
 
-  return { type => ($LEXTABLE{$sym} || $sym), literal => $sym, orig => $orig }
-    if defined $sym;
-
-  if (defined $cls) {
-
-    return {
-      type => $LEXTABLE{$cls} || 'ident',
-      literal => $cls,
-      orig => $orig
-    };
-  }
-
-  return { type => 'var', literal => $var, orig => $orig }
-    if $var;
-
-  croak "Error parsing signature at '" . substr($orig . $$data, 0, 10) . "'";
-
+     $self->_symbol_token($sym, $orig)
+  || $self->_class_token($cls, $orig)
+  || $self->_var_token($var, $orig);
 }
 
 
