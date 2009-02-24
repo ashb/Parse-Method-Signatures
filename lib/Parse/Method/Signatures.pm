@@ -9,6 +9,9 @@ use Text::Balanced qw(
   extract_bracketed
 );
 
+use Data::Dump qw/pp/;
+use PPI;
+use Moose::Util::TypeConstraints;
 use Parse::Method::Signatures::ParamCollection;
 use Parse::Method::Signatures::Types qw/PositionalParam NamedParam UnpackedParam/;
 use Carp qw/croak/;
@@ -18,12 +21,11 @@ use namespace::clean -except => 'meta';
 our $VERSION = '1.002000';
 our %LEXTABLE;
 
-has 'tokens' => (
-    is       => 'ro',
-    isa      => ArrayRef[HashRef],
-    init_arg => undef,
-    default  => sub { [] },
-);
+# Setup what we need for the magic EOF token
+@PPI::Token::EOF::ISA = 'PPI::Token';
+
+class_type "PPI::Document";
+class_type "PPI::Element";
 
 has 'input' => (
     is       => 'ro',
@@ -68,6 +70,21 @@ has 'type_constraint_callback' => (
     predicate => 'has_type_constraint_callback',
 );
 
+has 'ppi_doc' => (
+    is => 'ro',
+    isa => 'PPI::Document',
+    lazy_build => 1,
+    builder => 'parse',
+);
+
+# A bit dirty, but we set this with local most of the time
+has 'ppi_context' => (
+    is => 'ro',
+    isa => 'PPI::Element',
+    lazy_build => 1,
+    writer => '_set_ppi_context'
+);
+
 sub BUILD {
     my ($self) = @_;
 
@@ -104,6 +121,20 @@ override BUILDARGS => sub {
 
   return super();
 };
+
+sub parse {
+  my ($self) = @_;
+  
+  my $input = substr($self->input, $self->offset);
+  my $doc = PPI::Document->new(\$input);
+
+  return $doc;
+}
+
+sub _build_ppi_context {
+  my ($self) = @_;
+  return $self->ppi_doc->find_first("PPI::Statement")->first_element;
+}
 
 # signature: O_PAREN
 #            invocant
@@ -186,55 +217,6 @@ sub signature {
 }
 
 
-sub unpacked_array {
-  my ($self) = @_;
-
-  $self->assert_token('[');
-  my $params = [];
-
-  while ($self->token->{type} ne ']') {
-    my $param = $self->param
-      or $self->assert_token('var'); # not what we are asserting, but should give a useful error message
-
-    croak "Cannot have named parameters in an unpacked-array"
-      if NamedParam->check($param);
-
-    croak "Cannot have optional parameters in an unpacked-array"
-      if !$param->required;
-
-    push @$params, $param;
-
-    last if ($self->token->{type} eq ']');
-    $self->assert_token(',');
-  }
-  $self->assert_token(']');
-
-  return $params;
-}
-
-sub unpacked_hash {
-  my ($self, $label) = @_;
-
-  $self->assert_token('{');
-  my $params = [];
-
-  while ($self->token->{type} ne '}') {
-    my $param = $self->param
-      or $self->assert_token('var'); # not what we are asserting, but should give a useful error message
-
-    croak "Cannot have positional parameters in an unpacked-hash: " . $param->to_string
-      if $param->sigil eq '$' && PositionalParam->check($param);
-
-    push @$params, $param;
-
-    last if ($self->token->{type} eq '}');
-    $self->assert_token(',');
-  }
-  $self->assert_token('}');
-
-  return $params;
-}
-
 # param: tc?
 #        var
 #        (OPTIONAL|REQUIRED)?
@@ -276,385 +258,50 @@ sub param {
     }
   ) || return;
 
-  $self->_param_required_or_optional($param);
-  $self->_param_default_value($param);
-  $self->_param_constraints($param);
-  $self->_param_traits($param);
-
-  #use Data::Dumper; $Data::Dumper::Indent = 1;warn Dumper($param);
   $param = $self->create_param($param);
-  if ($class_meth) {
-    return wantarray ? ($param, $self->remaining_input) : $param;
-  } else {
-    return $param
-  }
+
+  return !$class_meth
+      ? $param
+      : wantarray
+      ? ($param, "")
+      : $param;
 }
 
-sub _param_tc {
-  my ($self, $param, $consumed) = @_;
-  my @tc = $self->tc;
-  return $consumed unless @tc;
-
-  my $tc = $self->type_constraint_class->new(
-    str  => $tc[1],
-    data => $tc[0],
-    $self->has_type_constraint_callback
-      ? (tc_callback => $self->type_constraint_callback)
-      : ()
-  );
-  $param->{type_constraints} = $tc;
-  return 1;
-}
-
-sub _param_colon_label {
-  my ($self, $param, $consumed) = @_;
-  $self->token->{type} eq ':' or return $consumed;
-
-  $param->{named} = 1;
-  $self->consume_token;
-
-  # Probably a label
-  if ($self->token->{type} eq 'ident') {
-    $param->{label} = $self->consume_token->{literal};
-
-    $self->assert_token('(');
-  }
-  return 1;
-}
-
-sub _param_possibly_labeled {
-  my ($self, $param, $consumed, $inner_parser) = @_;
-  $consumed = $self->_param_colon_label($param, $consumed);
-  $param->{required} = !$param->{named};
-
-  return unless $inner_parser->($consumed);
-
-  $self->assert_token(')') if defined($param->{label});
-  1;
-}
-
-sub _param_required_or_optional {
-  my ($self, $param) = @_;
-  my $token = $self->token;
-  if ($token->{type} =~ /[\?!]/) {
-    $param->{required} = ($token->{type} eq '!');
-    $self->consume_token;
-  }
-  return $param;
-}
-
-sub _param_default_value {
-  my ($self, $param) = @_;
-  return $param unless $self->token->{type} eq '=';
-  $self->consume_token;
-
-  my $val = $param->{default_value} = $self->value_ish();
-  if (!defined $val) {
-    croak "Error parsing default value at '" .
-          substr($self->remaining_input, 0, 10) .
-          "'";
-  }
-  return $param;
-}
-
-sub _param_constraints {
-  my ($self, $param) = @_;
-  while ($self->token->{type} eq 'WHERE') {
-    $self->consume_token;
-
-    $param->{constraints} ||= [];
-    my ($code) = extract_codeblock(${$self->_input});
-
-    # Text::Balanced *sets* $@. How horrible.
-    croak "$@" if $@;
-
-    substr(${$self->_input}, 0, length($code), '');
-    push @{$param->{constraints}}, $code;
-  }
-}
-
-sub _param_traits {
-  my ($self, $param) = @_;
-  my $token = $self->token;
-  while ($token->{type} eq 'TRAIT') {
-    $self->consume_token;
-    my $trait = $self->assert_token('ident')->{literal};
-
-    $param->{param_traits} ||= [];
-    push @{$param->{param_traits}}, [$token->{literal} => $trait];
-    $token = $self->token;
-  }
-}
-
-sub _param_array {
-  my ($self, $param) = @_;
-  return unless $self->token->{type} eq '[';
-
-  croak "Label required for named non-scalar param"
-    if $param->{named} && !defined $param->{label};
-
-  $param->{params} = $self->unpacked_array;
-  $param->{sigil} = '$';
-  $param->{unpacking} = 'Array';
-}
-
-sub _param_hash {
-  my ($self, $param) = @_;
-  return unless $self->token->{type} eq '{';
-
-  croak "Label required for named non-scalar param"
-    if $param->{named} && !defined $param->{label};
-
-  $param->{params} = $self->unpacked_hash;
-  $param->{sigil} = '$';
-  $param->{unpacking} = 'Hash';
-}
-
-sub _param_variable {
-  my ($self, $param, $consumed) = @_;
-  return unless $consumed || $self->token->{type} eq 'var';
-
-  $param->{variable_name} = $self->assert_token('var')->{literal};
-  $param->{sigil} = substr($param->{variable_name}, 0, 1);
-
-  croak "Label required for named non-scalar param"
-    if $param->{variable_name} !~ /^\$/ &&
-       $param->{named} && !defined $param->{label};
-
-  return 1;
-}
-
-# Used by default production.
-#
-# value_ish: number_literal
-#          | quote_like
-#          | variable
-#          | balanced
-#          | closure
-
-sub value_ish {
-  my ($self) = @_;
-
-  my $data = $self->_input;
-  my $num = $self->_number_like;
-  return $num if defined $num;
-
-  return  $self->_quote_like ||
-          #$self->_balanced_perl_like ||
-          $self->_variable_like;
-}
-
-sub _number_like {
-  my ($self) = @_;
-  # This taken from Perl6::Signatures, which in turn took it from perlfaq4
-  my $number_like = qr/^
-                      ( ([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?# float
-                      | -?(?:\d+(?:\.\d*)?|\.\d+)                      # decimal
-                      | -?\d+\.?\d*                                    # real
-                      | [+-]?\d+                                       # +ve or -ve integer
-                      | -?\d+                                          # integer
-                      | \d+                                            # whole number
-                      | 0x[0-9a-fA-F]+                                 # hexadecimal
-                      | 0b[01]+                                        # binary
-                      # note that octals will be captured by the "whole number"
-                      # production. Our consumer will have to eval this (we don't
-                      # want to do it for them because of roundtripping. But maybe
-                      # we need annotation nodes anyway?
-                      )/x;
-
-  my $data = $self->_input;
-
-  my ($num) = $$data =~ /$number_like/;
-
-  if (defined $num) {
-    substr($$data, 0, length($num), '');
-    return $num;
-  }
-  return undef;
-}
-
-sub _quote_like {
-  my ($self) = @_;
-
-  my $data = $self->_input;
-
-  my @quote = extract_quotelike($$data);
-
-  return undef if blessed $@ && $@->{error} =~ /^No quotelike operator found after prefix/;
-
-  croak "$@" if $@;
-  return unless $quote[0];
-
-  my $op = $quote[3] || $quote[4];
-
-  my %whitelist = map { $_ => 1 } qw(q qq qw qr " ');
-  croak "rejected quotelike operator: $op" unless $whitelist{$op};
-
-  substr($$data, 0, length $quote[0], '');
-
-  return $quote[0];
-}
-
-sub _balanced_perl_like {
-  my ($self) = @_;
-
-  my $data = $self->_input;
-
-  my @quote = extract_bracketed($$data);
-
-  return undef if blessed $@ && $@->{error} =~ /^No quotelike operator found after prefix/;
-
-  croak "$@" if $@;
-  return unless $quote[0];
-
-  my $op = $quote[3] || $quote[4];
-
-  my %whitelist = map { $_ => 1 } qw(q qq qw qr " ');
-  croak "rejected quotelike operator: $op" unless $whitelist{$op};
-
-  substr($$data, 0, length $quote[0], '');
-
-  return $quote[0];
-}
-
-sub _variable_like {
-  my ($self) = @_;
-
-  my $token = $self->token;
-  if ($token->{type} eq 'var') {
-    $self->consume_token;
-    return $token->{literal};
-  }
-  return; 
-}
-
-# tc: CLASS ('::' CLASS)*
-#   | tc '[' tc (',' tc)* ']'
-#   | tc '|' tc
 
 sub tc {
   my ($self, $required) = @_;
-  my ($tc, $tc_str);
 
-  my $state = $self->_ident($required) or return;
-  $state = $self->_tc_params($state);
-  @{$self->_tc_alternation($state)};
-}
+  my $ident = $self->_ident;
 
-sub _ident {
-  my($self, $required) = @_;
-  my $token = $self->token;
+  $self->error("Error parsing type constraint near " . $self->ppi_context)
+    if !$ident && $required;
 
-  my $tc_str = $token->{literal};
-  my $full = $token->{orig};
-  if ($token->{type} ne 'ident' && !exists $LEXTABLE{$token->{literal}}) {
-    return unless ($required);
-
-    $self->assert_token('ident');
-  }
-  $self->consume_token;
-
-  while (( $token = $self->token)->{type} eq '::') {
-    $tc_str .= '::';
-    $full .= $token->{orig};
-    $self->consume_token;
-
-    $token = $self->token;
-    if ($token->{type} ne 'ident' && !exists $LEXTABLE{$token->{literal}}) {
-      $self->assert_token('ident');
-    }
-    $full .= $token->{orig};
-    croak "Invalid spacing in type constraint after '$tc_str'\n"
-    if ($full =~ /\s::|::\s/ms);
-    $tc_str .= $self->consume_token->{literal};
-  }
-  return $tc_str;
+  $self->_tc_params($ident);
 }
 
 sub _tc_params {
-  my($self, $tc_str) = @_;
-  my $token = $self->token;
+  my ($self, $tc) = @_;
 
-  return([$tc_str, $tc_str]) unless $token->{type} eq '[';
+  my $ppi = $self->ppi_context;
+  return $tc 
+    unless $ppi->class eq 'PPI::Structure::Constructor' && 
+           $ppi->start eq '[';
 
-  my $tc = $tc_str;
-  $tc_str .= '[';
+  $ppi->finish eq ']' or $self->error("Unclosed '[]' in type constraint near: $ppi");
+
+  # [ Str => Str ] = { Struct => { Stmt => [ 'Str', '=>', 'Str' ] } }
+  $ppi->children == 1 or $self->error("Error parsing type constraint near: $ppi");
+
+  my $new = PPI::Statement::Expression->new($tc);
+
+  # We dont validate this here, meaning we could end up accepting
+  # ArrayRef[Str, {foo => $Bar}]
+  # Is this a problem?
+  $new->add_element($ppi->clone);
+
   $self->consume_token;
 
-  my @params = ($self->tc(1));
-  $tc_str .= pop @params;
-
-  while ($self->token->{type} eq ',') {
-    my $lit = $self->consume_token->{literal};
-
-    my ($sub, $str) = $self->tc(1);
-
-    # Turn previous arg into explicit str if followed by a fat comma
-    if ($lit eq '=>' && !ref $params[-1]) {
-      $params[-1] = { -str => $params[-1] };
-    }
-    push @params, $sub;
-
-    $tc_str .= "," . $str;
-  }
-
-  $self->assert_token(']');
-  $tc_str .= ']';
-
-  $tc = { -type => $tc, -params => \@params };
-  return [$tc, $tc_str];
-}
-
-sub _tc_alternation {
-  my $self = shift;
-  my ($tc, $tc_str) = @{$_[0]};
-  return([$tc, $tc_str]) unless $self->token->{type} eq '|';
-
-  my @tcs = ( $tc );
-
-  while ($self->token->{type} eq '|') {
-    $tc_str .= '|';
-    $self->consume_token;
-    my ($sub, $str) = $self->tc(1);
-    push @tcs, $sub;
-    $tc_str .= $str;
-  }
-
-  return [{ -or => \@tcs }, $tc_str];
-}
-
-sub assert_token {
-  my ($self, $type) = @_;
-
-  if ($self->token->{type} eq $type) {
-    return $self->consume_token;
-  }
-
-  Carp::confess "$type required, found  '" .$self->token->{literal} . "'!";
-}
-
-sub token {
-  my ($self, $la) = @_;
-
-  $la ||= 0;
-
-  while (@{$self->tokens} <= $la) {
-    my $token = $self->next_token($self->_input);
-
-    $token ||= { type => 'NUL' };
-
-    push @{$self->tokens}, $token;
-  }
-  return $self->tokens->[$la];
-}
-
-sub consume_token {
-  my ($self) = @_;
-
-  Carp::confess "No token to consume"
-    unless @{$self->tokens};
-
-  return shift @{$self->tokens};
+  return $new;
 }
 
 %LEXTABLE = (
@@ -664,62 +311,18 @@ sub consume_token {
   '=>'  => ',',
 );
 
-sub _null_token {
-    { type => 'NUL' }
-}
+sub _ident {
+  my ($self, $required) = @_;
 
-sub _symbol_token {
-    my ($self, $sym, $orig) = @_;
-    return unless $sym;
-
-    $self->_make_token(($LEXTABLE{$sym} || $sym), $sym, $orig);
-}
-
-sub _class_token {
-    my ($self, $cls, $orig) = @_;
-    return unless $cls;
-
-    $self->_make_token(($LEXTABLE{$cls} || 'ident'), $cls, $orig);
-}
-
-sub _var_token {
-    my ($self, $var, $orig) = @_;
-    return unless $var;
-    $self->_make_token('var', $var, $orig);
-}
-
-sub _make_token {
-    my ($self, $type, $literal, $orig) = @_;
-
-    {type => $type, literal => $literal, orig => $orig}
-}
-
-sub next_token {
-  my ($self, $data) = @_;
-
-  return { type => 'NUL' } if $$data =~ m/^\s*$/;
-
-  my $re = qr/^ (\s* (?:
-    ( => | [(){}\[\],=|!?] | :{1,2} ) |
-    ( [A-Za-z_][a-zA-Z0-0_-]+ ) |
-    ( [\$\%\@] (?: [_A-Za-z][a-zA-Z0-9_]* )? ) |
-  ) (?:\s*\#.*?[\r\n])?\s*) /x;
-
-  # symbols in $2
-  # class-name/identifier in $3
-  # $var in $4
-
-  unless ( $$data =~ s/$re//) {
-    croak "Error parsing signature at '" . substr($$data, 0, 10) . "'";
+  #TODO
+  if ($self->ppi_context->class ne 'PPI::Token::Word' &&
+      !exists $LEXTABLE{$self->ppi_context->content}) {
+    $required and $self->assert_token('ident') 
+               or return;
   }
 
-  my ($orig, $sym, $cls,$var) = ($1,$2,$3, $4);
-
-     $self->_symbol_token($sym, $orig)
-  || $self->_class_token($cls, $orig)
-  || $self->_var_token($var, $orig);
+  return $self->consume_token;
 }
-
 
 sub remaining_input {
   my ($self) = @_;
@@ -731,6 +334,24 @@ sub remaining_input {
   $input .= $_->{orig} for @{$self->tokens};
   $input .= ${$self->_input};
   return $input;
+}
+
+sub consume_token {
+  my ($self) = @_;
+
+  my $ppi = $self->ppi_context;
+  my $ret = $ppi;
+
+  # No direct next sibling, walk up stack till we find one;
+  while ($ppi && !$ppi->snext_sibling) {
+    $ppi = $ppi->parent;
+  }
+
+  $self->_set_ppi_context(
+    $ppi && $ppi->snext_sibling ? $ppi->snext_sibling
+                                : bless {}, "PPI::Token::EOF"
+  );
+  return $ret;
 }
 
 __PACKAGE__->meta->make_immutable;
