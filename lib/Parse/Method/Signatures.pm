@@ -23,6 +23,7 @@ our %LEXTABLE;
 
 # Setup what we need for the magic EOF token
 @PPI::Token::EOF::ISA = 'PPI::Token';
+@PPI::Token::StringifiedWord::ISA = 'PPI::Token::Word'; # Used for LHS of fat comma
 
 class_type "PPI::Document";
 class_type "PPI::Element";
@@ -78,11 +79,11 @@ has 'ppi_doc' => (
 );
 
 # A bit dirty, but we set this with local most of the time
-has 'ppi_context' => (
+has 'ppi' => (
     is => 'ro',
     isa => 'PPI::Element',
     lazy_build => 1,
-    writer => '_set_ppi_context'
+    writer => '_set_ppi'
 );
 
 sub BUILD {
@@ -128,10 +129,13 @@ sub parse {
   my $input = substr($self->input, $self->offset);
   my $doc = PPI::Document->new(\$input);
 
+  # Append the magic EOF Token
+  $doc->add_element(bless {}, "PPI::Token::EOF");
+
   return $doc;
 }
 
-sub _build_ppi_context {
+sub _build_ppi {
   my ($self) = @_;
   return $self->ppi_doc->find_first("PPI::Statement")->first_element;
 }
@@ -273,35 +277,142 @@ sub tc {
 
   my $ident = $self->_ident;
 
-  $self->error("Error parsing type constraint near " . $self->ppi_context)
+  #TODO: Work out how to give some previous context to this.
+  $self->error("Error parsing type constraint", $self->ppi)
     if !$ident && $required;
 
   $self->_tc_params($ident);
 }
 
+# Handle parameterized TCs. e.g.:
+# ArrayRef[Str]
+# Dict[Str => Str]
+# Dict["foo bar", Baz]
 sub _tc_params {
   my ($self, $tc) = @_;
 
-  my $ppi = $self->ppi_context;
-  return $tc 
-    unless $ppi->class eq 'PPI::Structure::Constructor' && 
-           $ppi->start eq '[';
+  my $ppi = $self->ppi;
+  return $tc->clone 
+    unless $ppi->content eq '[';
 
-  $ppi->finish eq ']' or $self->error("Unclosed '[]' in type constraint near: $ppi");
+  # Get from the '[' token the to Strucure::Constructor 
+  $ppi = $ppi->parent;
+
+  $ppi->finish or $self->error("Runaway '[]' in type constraint", $ppi, 1);
 
   # [ Str => Str ] = { Struct => { Stmt => [ 'Str', '=>', 'Str' ] } }
-  $ppi->children == 1 or $self->error("Error parsing type constraint near: $ppi");
+  $ppi->schildren == 1 or $self->error("Error parsing type constraint", $ppi);
+  $self->consume_token; # consume '[';
 
   my $new = PPI::Statement::Expression->new($tc);
+  my $list = PPI::Structure::Constructor->new($ppi->start);
 
-  # We dont validate this here, meaning we could end up accepting
-  # ArrayRef[Str, {foo => $Bar}]
-  # Is this a problem?
-  $new->add_element($ppi->clone);
+  $new->add_element($list);
 
-  $self->consume_token;
+  # Maybe break out this into seperate method?
+  $self->_add_with_ws($list, $self->_tc_param);
+
+  while ($self->ppi->content =~ /^,|=>$/ ) {
+
+    my $op = $self->consume_token;
+    $self->_stringify_last($list) if $op->content eq '=>';
+    $self->_add_with_ws($list, $op, 1);
+
+    $list->add_element($self->tc(1));
+  }
+
+  $self->error("Error parsing type constraint", $self->ppi)
+    if $self->ppi != $ppi->finish;
+
+  # Hmm we seem to have to call a private method. sucky
+  $self->_add_ws($list)->_set_finish($self->consume_token->clone);
 
   return $new;
+}
+
+# Valid token for individual component of parameterized TC
+sub _tc_param {
+  my ($self) = @_;
+
+  (my $class = $self->ppi->class) =~ s/^PPI:://;
+  return $self->consume_token
+      if $class eq 'Token::Number' ||
+         $class =~ /^Token::Quote::(?:Single|Double|Literal|Interpolate)/;
+
+  return $self->tc(1);
+}
+
+# Stringify LHS of fat comma
+sub _stringify_last {
+  my ($self, $list) = @_;
+  my $last = $list->last_token;
+  return unless $last->isa('PPI::Token::Word');
+
+  # Is this conditional on the content of the word?
+  bless $last, "PPI::Token::StringifiedWord";
+  return $list;
+}
+
+sub _tc_union {
+  my ($self, $tc) = @_;
+
+  while ($self->ppi->isa('PPI::Token::Operator') &&
+         $self->ppi->content eq '|') {
+    
+    
+  }
+
+  return $tc;
+}
+
+sub error {
+  my ($self, $msg, $token, $no_in) = @_;
+  Carp::croak(
+    $msg . " near '$token'" . 
+    ($no_in ? ""
+           : " in '" . $token->statement . "'" 
+    )
+  );
+}
+
+# Add $token to $collection, preserving WS/comment nodes prior to $token
+sub _add_with_ws {
+  my ($self, $collection, $token, $trailing) = @_;
+
+  my @elements = ($token);
+
+  my $t = $token->previous_token;
+
+  while ($t && !$t->significant) {
+    unshift @elements, $t;
+    $t = $t->previous_token;
+  }
+
+  if ($trailing) {
+    $t = $token->next_token;
+    while ($t && !$t->significant) {
+      push @elements, $t;
+      $t = $t->next_token;
+    }
+  }
+
+  $collection->add_element($_->clone) for @elements;
+
+  return $collection;
+}
+
+# Add ws prior to $self->ppi to $collection
+sub _add_ws {
+  my ($self, $collection) = @_;
+
+  my @toks;
+  my $t = $self->ppi->previous_token;
+  while ($t && !$t->significant) {
+    unshift @toks, $t;
+    $t = $t->previous_token;
+  }
+  $collection->add_element($_->clone) for @toks;
+  return $collection;
 }
 
 %LEXTABLE = (
@@ -312,45 +423,26 @@ sub _tc_params {
 );
 
 sub _ident {
-  my ($self, $required) = @_;
-
-  #TODO
-  if ($self->ppi_context->class ne 'PPI::Token::Word' &&
-      !exists $LEXTABLE{$self->ppi_context->content}) {
-    $required and $self->assert_token('ident') 
-               or return;
-  }
-
-  return $self->consume_token;
-}
-
-sub remaining_input {
   my ($self) = @_;
 
-  return ${$self->_input} unless @{$self->tokens};
-
-  my $input = '';
-
-  $input .= $_->{orig} for @{$self->tokens};
-  $input .= ${$self->_input};
-  return $input;
+  my $ppi = $self->ppi;
+  return $self->consume_token
+    if $ppi->isa('PPI::Token::Word') &&
+       !exists $LEXTABLE{"$ppi"};
 }
 
 sub consume_token {
   my ($self) = @_;
 
-  my $ppi = $self->ppi_context;
+  my $ppi = $self->ppi;
   my $ret = $ppi;
 
-  # No direct next sibling, walk up stack till we find one;
-  while ($ppi && !$ppi->snext_sibling) {
-    $ppi = $ppi->parent;
+  while (!$ppi->isa('PPI::Token::EOF') ) {
+    $ppi = $ppi->next_token;
+    last if $ppi->significant;
   }
 
-  $self->_set_ppi_context(
-    $ppi && $ppi->snext_sibling ? $ppi->snext_sibling
-                                : bless {}, "PPI::Token::EOF"
-  );
+  $self->_set_ppi( $ppi );
   return $ret;
 }
 
