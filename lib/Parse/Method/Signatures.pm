@@ -19,6 +19,7 @@ use Carp qw/croak/;
 use namespace::clean -except => 'meta';
 
 our $VERSION = '1.002000';
+our $ERROR_LEVEL = 0;
 our %LEXTABLE;
 
 # Setup what we need for the magic EOF token
@@ -130,7 +131,7 @@ sub parse {
   my $doc = PPI::Document->new(\$input);
 
   # Append the magic EOF Token
-  $doc->add_element(bless {}, "PPI::Token::EOF");
+  $doc->add_element(PPI::Token::EOF->new(""));
 
   return $doc;
 }
@@ -271,6 +272,23 @@ sub param {
       : $param;
 }
 
+sub _param_colon_label {
+  my ($self, $param, $consumed) = @_;
+
+
+}
+
+sub _param_possibly_labeled {
+  my ($self, $param, $consumed, $inner_parser) = @_;
+  $consumed = $self->_param_colon_label($param, $consumed);
+  $param->{required} = !$param->{named};
+ 
+  return unless $inner_parser->($consumed);
+ 
+  $self->assert_token(')') if defined($param->{label});
+  1;
+}
+
 
 sub tc {
   my ($self, $required) = @_;
@@ -278,7 +296,7 @@ sub tc {
   my $ident = $self->_ident;
 
   #TODO: Work out how to give some previous context to this.
-  $self->error("Error parsing type constraint", $self->ppi)
+  $self->error($self->ppi)
     if !$ident && $required;
 
   $self->_tc_params($ident);
@@ -298,10 +316,10 @@ sub _tc_params {
   # Get from the '[' token the to Strucure::Constructor 
   $ppi = $ppi->parent;
 
-  $ppi->finish or $self->error("Runaway '[]' in type constraint", $ppi, 1);
+  $ppi->finish or $self->error($ppi, "Runaway '[]' in type constraint", 1);
 
   # [ Str => Str ] = { Struct => { Stmt => [ 'Str', '=>', 'Str' ] } }
-  $ppi->schildren == 1 or $self->error("Error parsing type constraint", $ppi);
+  $ppi->schildren == 1 or $self->error($ppi);
   $self->consume_token; # consume '[';
 
   my $new = PPI::Statement::Expression->new($tc);
@@ -321,13 +339,20 @@ sub _tc_params {
     $list->add_element($self->tc(1));
   }
 
-  $self->error("Error parsing type constraint", $self->ppi)
+  $self->error($self->ppi)
     if $self->ppi != $ppi->finish;
 
   # Hmm we seem to have to call a private method. sucky
   $self->_add_ws($list)->_set_finish($self->consume_token->clone);
 
   return $new;
+}
+
+sub bracketed {
+  my ($self, $type, $code) = @_;
+
+  my $ppi = $self->ppi;
+  return unless $ppi->content eq $type;
 }
 
 # Valid token for individual component of parameterized TC
@@ -366,7 +391,15 @@ sub _tc_union {
 }
 
 sub error {
-  my ($self, $msg, $token, $no_in) = @_;
+  my ($self, $token, $msg, $no_in) = @_;
+
+  unless ($msg) {
+    my (undef, undef, undef, $sub) = caller($ERROR_LEVEL+1);
+
+    $msg = "Error parsing";
+    $msg .= " type constraint" if $sub =~ /tc\b|\btc\b/;
+  }
+
   Carp::croak(
     $msg . " near '$token'" . 
     ($no_in ? ""

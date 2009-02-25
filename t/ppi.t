@@ -14,6 +14,14 @@ is( Parse::Method::Signatures->new("where::Foo")->_ident(), "where::Foo");
 is( Parse::Method::Signatures->new("where Foo")->_ident(), undef);
 }
 
+throws_ok {
+  Parse::Method::Signatures->new("Foo[Bar")->tc()
+} qr/^\QRunaway '[]' in type constraint near '[Bar' at\E/;
+
+throws_ok {
+  Parse::Method::Signatures->new("Foo[Bar:]")->tc()
+} qr/^\QError parsing type constraint near 'Bar:' in 'Bar:' at\E/;
+
 is( Parse::Method::Signatures->new("ArrayRef")->tc(), "ArrayRef");
 is( Parse::Method::Signatures->new("ArrayRef[Str => Str]")->tc(), "ArrayRef[Str => Str]");
 is( Parse::Method::Signatures->new("ArrayRef[Str]")->tc(), "ArrayRef[Str]");
