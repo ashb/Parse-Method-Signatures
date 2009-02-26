@@ -299,7 +299,8 @@ sub tc {
   $self->error($self->ppi)
     if !$ident && $required;
 
-  $self->_tc_params($ident);
+  return $self->bracketed('[', \&_tc_params, $ident)
+      || $ident->clone;
 }
 
 # Handle parameterized TCs. e.g.:
@@ -307,27 +308,8 @@ sub tc {
 # Dict[Str => Str]
 # Dict["foo bar", Baz]
 sub _tc_params {
-  my ($self, $tc) = @_;
+  my ($self, $tc, $list) = @_;
 
-  my $ppi = $self->ppi;
-  return $tc->clone 
-    unless $ppi->content eq '[';
-
-  # Get from the '[' token the to Strucure::Constructor 
-  $ppi = $ppi->parent;
-
-  $ppi->finish or $self->error($ppi, "Runaway '[]' in type constraint", 1);
-
-  # [ Str => Str ] = { Struct => { Stmt => [ 'Str', '=>', 'Str' ] } }
-  $ppi->schildren == 1 or $self->error($ppi);
-  $self->consume_token; # consume '[';
-
-  my $new = PPI::Statement::Expression->new($tc);
-  my $list = PPI::Structure::Constructor->new($ppi->start);
-
-  $new->add_element($list);
-
-  # Maybe break out this into seperate method?
   $self->_add_with_ws($list, $self->_tc_param);
 
   while ($self->ppi->content =~ /^,|=>$/ ) {
@@ -339,6 +321,31 @@ sub _tc_params {
     $list->add_element($self->tc(1));
   }
 
+}
+
+# Handle the boring bits of bracketed product, then call $code->($self, ...) 
+sub bracketed {
+  my ($self, $type, $code, $token, @args) = @_;
+
+  local $ERROR_LEVEL = $ERROR_LEVEL + 1;
+  my $ppi = $self->ppi;
+  return unless $ppi->content eq $type;
+
+  $self->consume_token; # consume '[';
+
+  # Get from the '[' token the to Strucure::Constructor 
+  $ppi = $ppi->parent;
+
+  $ppi->finish or $self->error($ppi, 
+    "Runaway '" . $ppi->braces . "' in" . $self->_parsing_area, 1);
+
+  my $new = PPI::Statement::Expression->new($token);
+  my $list = PPI::Structure::Constructor->new($ppi->start);
+
+  $new->add_element($list);
+
+  $code->($self, $token, $list, @args);
+
   $self->error($self->ppi)
     if $self->ppi != $ppi->finish;
 
@@ -346,13 +353,6 @@ sub _tc_params {
   $self->_add_ws($list)->_set_finish($self->consume_token->clone);
 
   return $new;
-}
-
-sub bracketed {
-  my ($self, $type, $code) = @_;
-
-  my $ppi = $self->ppi;
-  return unless $ppi->content eq $type;
 }
 
 # Valid token for individual component of parameterized TC
@@ -390,14 +390,22 @@ sub _tc_union {
   return $tc;
 }
 
+sub _parsing_area {
+  my (undef, undef, undef, $sub) = caller($ERROR_LEVEL+1);
+
+  return " type constraint" if $sub =~ /(?:\b|_)tc(?:\b|_)/;
+
+  " unknown production ($sub)";
+}
+
 sub error {
   my ($self, $token, $msg, $no_in) = @_;
 
   unless ($msg) {
+    local $ERROR_LEVEL = $ERROR_LEVEL + 1;
     my (undef, undef, undef, $sub) = caller($ERROR_LEVEL+1);
 
-    $msg = "Error parsing";
-    $msg .= " type constraint" if $sub =~ /tc\b|\btc\b/;
+    $msg = "Error parsing" . $self->_parsing_area;
   }
 
   Carp::croak(
