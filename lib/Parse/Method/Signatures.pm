@@ -253,15 +253,23 @@ sub param {
 
   my $param = {};
 
-  $self->_param_possibly_labeled(
-    $param, $self->_param_tc($param, 0),
-    sub {
-      my $consumed = shift;
-      $self->_param_array($param)
-      || $self->_param_hash($param)
-      || $self->_param_variable($param, $consumed)
-    }
-  ) || return;
+  #$self->_param_possibly_labeled(
+  #  $param, $self->_param_tc($param, 0),
+  #  sub {
+  #    my $consumed = shift;
+  #    $self->_param_array($param)
+  #    || $self->_param_hash($param)
+  #    || $self->_param_variable($param, $consumed)
+  #  }
+  #) || return;
+
+  # hack
+  $param->{required} = 0;
+
+  #$self->_param_array($param)
+  #|| $self->_param_hash($param)
+  #|| $self->_param_variable($param, $consumed)
+  $self->_param_variable($param, 0);
 
   $param = $self->create_param($param);
 
@@ -273,20 +281,41 @@ sub param {
 }
 
 sub _param_colon_label {
-  my ($self, $param, $consumed) = @_;
+  my ($self, $param, $consumed, $inner) = @_;
 
+  $self->ppi->content eq ':' or return $consumed;
 
+  $param->{named} = 1;
+  $self->consume_token;
+
+  if ($self->ppi->class eq 'PPI::Token::Word') {
+    $self->error($self->ppi, "Invalid label")
+      if $self->ppi->content =~ /[^-\w]/;
+
+    $param->{label} = $self->consume_token->content;
+    $self->bracketed('(', $inner, $param, $consumed);
+  }
+  return 1;
 }
 
 sub _param_possibly_labeled {
   my ($self, $param, $consumed, $inner_parser) = @_;
-  $consumed = $self->_param_colon_label($param, $consumed);
+  $consumed = $self->_param_colon_label($param, $consumed, $inner_parser);
   $param->{required} = !$param->{named};
  
   return unless $inner_parser->($consumed);
  
   $self->assert_token(')') if defined($param->{label});
   1;
+}
+
+sub _param_variable {
+  my ($self, $param) = @_;
+
+  my $ppi = $self->ppi;
+  $ppi->symbol_type eq $ppi->raw_type or $self->error($ppi);
+
+  $param->{sigil} = $ppi->raw_type;
 }
 
 
@@ -337,14 +366,14 @@ sub bracketed {
   $ppi = $ppi->parent;
 
   $ppi->finish or $self->error($ppi, 
-    "Runaway '" . $ppi->braces . "' in" . $self->_parsing_area, 1);
+    "Runaway '" . $ppi->braces . "' in" . $self->_parsing_area(1), 1);
 
   my $new = PPI::Statement::Expression->new($token);
   my $list = PPI::Structure::Constructor->new($ppi->start);
 
   $new->add_element($list);
 
-  $code->($self, $token, $list, @args);
+  my $ret = $code->($self, $token, $list, @args);
 
   $self->error($self->ppi)
     if $self->ppi != $ppi->finish;
@@ -390,10 +419,13 @@ sub _tc_union {
   return $tc;
 }
 
-sub _parsing_area {
-  my (undef, undef, undef, $sub) = caller($ERROR_LEVEL+1);
+sub _parsing_area { 
+  shift;
+  my $height = shift || 0;
+  my (undef, undef, undef, $sub) = caller($height+$ERROR_LEVEL);
 
   return " type constraint" if $sub =~ /(?:\b|_)tc(?:\b|_)/;
+  return " parameter"       if $sub =~ /(?:\b|_)param(?:\b|_)/;
 
   " unknown production ($sub)";
 }
@@ -402,10 +434,7 @@ sub error {
   my ($self, $token, $msg, $no_in) = @_;
 
   unless ($msg) {
-    local $ERROR_LEVEL = $ERROR_LEVEL + 1;
-    my (undef, undef, undef, $sub) = caller($ERROR_LEVEL+1);
-
-    $msg = "Error parsing" . $self->_parsing_area;
+    $msg = "Error parsing" . $self->_parsing_area(2);
   }
 
   Carp::croak(
