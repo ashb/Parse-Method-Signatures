@@ -22,7 +22,7 @@ our $VERSION = '1.002000';
 our $ERROR_LEVEL = 0;
 our %LEXTABLE;
 
-# Setup what we need for the magic EOF token
+# Setup what we need for specific PPI subclasses
 @PPI::Token::EOF::ISA = 'PPI::Token';
 @PPI::Token::StringifiedWord::ISA = 'PPI::Token::Word'; # Used for LHS of fat comma
 
@@ -312,7 +312,6 @@ sub _param_named {
   return unless
     $self->ppi->content eq ':' &&
     $self->ppi->next_token->isa('PPI::Token::Symbol');
-  $DB::single = 1;
   $param->{required} = 1;
   $param->{named} = 1;
   $self->consume_token;
@@ -343,8 +342,10 @@ sub tc {
   $self->error($self->ppi)
     if !$ident && $required;
 
-  return $self->bracketed('[', \&_tc_params, $ident)
-      || $ident->clone;
+  return $self->_tc_union(
+    $self->bracketed('[', \&_tc_params, $ident)
+      || $ident->clone
+  );
 }
 
 # Handle parameterized TCs. e.g.:
@@ -379,6 +380,21 @@ sub _tc_param {
   return $self->tc(1);
 }
 
+sub _tc_union {
+  my ($self, $tc) = @_;
+  
+  return $tc unless $self->ppi->content eq '|';
+
+  my $union = PPI::Statement::Expression::Union->new($tc);
+  while ( $self->ppi->content eq '|' ) {
+   
+    $self->consume_token;
+    $union->add_element($self->tc(1));
+  }
+
+  return $union;
+}
+
 # Stringify LHS of fat comma
 sub _stringify_last {
   my ($self, $list) = @_;
@@ -388,18 +404,6 @@ sub _stringify_last {
   # Is this conditional on the content of the word?
   bless $last, "PPI::Token::StringifiedWord";
   return $list;
-}
-
-sub _tc_union {
-  my ($self, $tc) = @_;
-
-  while ($self->ppi->isa('PPI::Token::Operator') &&
-         $self->ppi->content eq '|') {
-    
-    
-  }
-
-  return $tc;
 }
 
 # Handle the boring bits of bracketed product, then call $code->($self, ...) 
@@ -542,6 +546,18 @@ sub consume_token {
 }
 
 __PACKAGE__->meta->make_immutable;
+
+
+{ package 
+  PPI::Statement::Expression::Union;
+  use base 'PPI::Statement::Expression';
+
+  sub content {
+    my ($self) = @_;
+
+    join('|', $self->children );
+  }
+}
 
 1;
 

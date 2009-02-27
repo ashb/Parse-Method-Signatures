@@ -27,6 +27,7 @@ is( Parse::Method::Signatures->new("ArrayRef[Str => Str]")->tc(), "ArrayRef[Str 
 is( Parse::Method::Signatures->new("ArrayRef[Str]")->tc(), "ArrayRef[Str]");
 is( Parse::Method::Signatures->new("ArrayRef[0 => Foo]")->tc(), "ArrayRef[0 => Foo]");
 is( Parse::Method::Signatures->new("ArrayRef[qq/0/]")->tc(), "ArrayRef[qq/0/]");
+is( Parse::Method::Signatures->new("Foo|Bar")->tc(), "Foo|Bar");
 
 lives_ok { Parse::Method::Signatures->new('$x')->param() };
 
