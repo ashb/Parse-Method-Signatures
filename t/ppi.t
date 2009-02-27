@@ -16,11 +16,13 @@ is( Parse::Method::Signatures->new("where Foo")->_ident(), undef);
 
 throws_ok {
   Parse::Method::Signatures->new("Foo[Bar")->tc()
-} qr/^\QRunaway '[]' in type constraint near '[Bar' at\E/;
+} qr/^\QRunaway '[]' in type constraint near '[Bar' at\E/,
+  q/Runaway '[]' in type constraint near '[Bar' at/;
 
 throws_ok {
   Parse::Method::Signatures->new("Foo[Bar:]")->tc()
-} qr/^\QError parsing type constraint near 'Bar:' in 'Bar:' at\E/;
+} qr/^\QError parsing type constraint near 'Bar:' in 'Bar:' at\E/,
+  q/Error parsing type constraint near 'Bar:' in 'Bar:' at/;
 
 is( Parse::Method::Signatures->new("ArrayRef")->tc(), "ArrayRef");
 is( Parse::Method::Signatures->new("ArrayRef[Str => Str]")->tc(), "ArrayRef[Str => Str]");
@@ -33,7 +35,9 @@ lives_ok { Parse::Method::Signatures->new('$x')->param() };
 
 throws_ok {
   Parse::Method::Signatures->new('$x[0]')->param()
-  } qr/Error parsing parameter near '\$x' in '\$x\[0\]' at /;
+  } qr/Error parsing parameter near '\$x' in '\$x\[0\]' at /,
+  q{Error parsing parameter near '\$x' in '\$x\[0\]' at };
+
 
 test_param(
   Parse::Method::Signatures->new('$x')->param(),
@@ -62,6 +66,16 @@ test_param(
   }
 );
 
+# ":y($x)" is an important test, as this tests the replacment of PPI's regexp operators
+test_param(
+  Parse::Method::Signatures->new(':y($x)')->param(),
+  { required => 1,
+    sigil => '$',
+    variable_name => '$x',
+    label => 'y',
+    __does => ["Parse::Method::Signatures::Param::Named"],
+  }
+);
 
 sub test_param {
   my ($param, $wanted, $msg) = @_;

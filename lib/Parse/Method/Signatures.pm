@@ -133,7 +133,34 @@ sub parse {
   # Append the magic EOF Token
   $doc->add_element(PPI::Token::EOF->new(""));
 
+  # Annoyingly "m($x)" gets treated as a regex operator. This isn't what we 
+  # want. so replace it with a Word, then a list. The way we do this is by
+  # taking the operator off the front, then reparsing the rest of the content
+  # This will look the same (so wont affect anything in a code block) but is
+  # just store different token wise.
+  $self->_replace_regexps($doc);
+
   return $doc;
+}
+
+sub _replace_regexps {
+  my ($self, $doc) = @_;
+
+  foreach my $node ( @{ $doc->find('Token::Regexp') || [] } ) {
+    my $str = $node->content;
+
+    # Rather annoyingly, there are *no* methods on Token::Regexp;
+    my ($word, $rest) = $str =~ /^(@{[$node->{operator}]})(.*)$/s;
+
+    my $subdoc = PPI::Document->new(\$rest);
+    my @to_add = reverse map { $_->remove } $subdoc->children;
+    push @to_add, new PPI::Token::Word($word);
+    # insert_after restricts what you can insert.
+    # $node->insert_after($_) for @to_add;
+    $node->__insert_after($_) for @to_add;
+
+    $node->delete;
+  }
 }
 
 sub _build_ppi {
@@ -272,7 +299,7 @@ sub param {
   $self->_param_labeled($param, 0)
     || $self->_param_named($param, 0)
     || $self->_param_variable($param, 0)
-    || $self->error;
+    || $self->error($self->ppi);
 
   $param = $self->create_param($param);
 
@@ -300,7 +327,10 @@ sub _param_labeled {
   $param->{label} = $self->consume_token->content;
 
   $self->assert_token('(');
-  $self->_param_variable($param);
+  0#$self->_param_unpacked($param) 
+    || $self->_param_variable($param)
+    || $self->error;
+
   $self->assert_token(')');
 
   return 1;
@@ -469,7 +499,7 @@ sub error {
 sub assert_token {
   my ($self, $need, $msg) = @_;
 
-  if ($self-ppi->content ne $need) {
+  if ($self->ppi->content ne $need) {
     $self->error($self->ppi, "'$need' expected whilst parsing " . $self->_parsing_area(2));
   }
   return $self->consume_token;
