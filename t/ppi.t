@@ -33,3 +33,8 @@ lives_ok { Parse::Method::Signatures->new('$x')->param() };
 throws_ok {
   Parse::Method::Signatures->new('$x[0]')->param()
   } qr/Error parsing parameter near '\$x' in '\$x\[0\]' at /;
+
+eq_or_diff(
+   Parse::Method::Signatures->new('$x')->param(),
+   { }
+);

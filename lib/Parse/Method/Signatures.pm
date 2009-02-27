@@ -316,6 +316,7 @@ sub _param_variable {
   $ppi->symbol_type eq $ppi->raw_type or $self->error($ppi);
 
   $param->{sigil} = $ppi->raw_type;
+  $param->{variable_name} = $ppi->content;
 }
 
 
