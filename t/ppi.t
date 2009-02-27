@@ -34,7 +34,50 @@ throws_ok {
   Parse::Method::Signatures->new('$x[0]')->param()
   } qr/Error parsing parameter near '\$x' in '\$x\[0\]' at /;
 
-eq_or_diff(
-   Parse::Method::Signatures->new('$x')->param(),
-   { }
+test_param(
+  Parse::Method::Signatures->new('$x')->param(),
+  { required => 0,
+    sigil => '$',
+    variable_name => '$x',
+    __does => ["Parse::Method::Signatures::Param::Positional"],
+  }
 );
+
+test_param(
+  Parse::Method::Signatures->new('@x')->param(),
+  { required => 0,
+    sigil => '@',
+    variable_name => '@x',
+    __does => ["Parse::Method::Signatures::Param::Positional"],
+  }
+);
+
+test_param(
+  Parse::Method::Signatures->new(':$x')->param(),
+  { required => 1,
+    sigil => '$',
+    variable_name => '$x',
+    __does => ["Parse::Method::Signatures::Param::Named"],
+  }
+);
+
+
+sub test_param {
+  my ($param, $wanted, $msg) = @_;
+  local $Test::Builder::Level = 2;
+
+  use Data::Dump qw/pp/;
+  if (my $isa = delete $wanted->{__isa}) {
+    isa_ok($param, $isa, $msg)
+      or diag(pp $param->meta->linearized_isa);
+  }
+
+  for ( @{ delete $wanted->{__does} || [] }) {
+    ok(0 , "Param doesn't do $_" ) && last
+      unless $param->does($_)
+  }
+
+  my $p = { %$param };
+  delete $p->{_trait_namespace};
+  eq_or_diff($p, $wanted, $msg);
+}

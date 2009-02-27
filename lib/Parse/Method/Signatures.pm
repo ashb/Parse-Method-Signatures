@@ -269,7 +269,10 @@ sub param {
   #$self->_param_array($param)
   #|| $self->_param_hash($param)
   #|| $self->_param_variable($param, $consumed)
-  $self->_param_variable($param, 0);
+  $self->_param_labeled($param, 0)
+    || $self->_param_named($param, 0)
+    || $self->_param_variable($param, 0)
+    || $self->error;
 
   $param = $self->create_param($param);
 
@@ -280,43 +283,54 @@ sub param {
       : $param;
 }
 
-sub _param_colon_label {
-  my ($self, $param, $consumed, $inner) = @_;
+sub _param_labeled {
+  my ($self, $param) = @_;
 
-  $self->ppi->content eq ':' or return $consumed;
+  return unless 
+    $self->ppi->content eq ':' &&
+    $self->ppi->next_token->isa('PPI::Token::Word');
 
-  $param->{named} = 1;
   $self->consume_token;
 
-  if ($self->ppi->class eq 'PPI::Token::Word') {
-    $self->error($self->ppi, "Invalid label")
-      if $self->ppi->content =~ /[^-\w]/;
+  $self->error($self->ppi, "Invalid label")
+    if $self->ppi->content =~ /[^-\w]/;
 
-    $param->{label} = $self->consume_token->content;
-    $self->bracketed('(', $inner, $param, $consumed);
-  }
+  $param->{named} = 1;
+  $param->{required} = 1;
+  $param->{label} = $self->consume_token->content;
+
+  $self->assert_token('(');
+  $self->_param_variable($param);
+  $self->assert_token(')');
+
   return 1;
 }
 
-sub _param_possibly_labeled {
-  my ($self, $param, $consumed, $inner_parser) = @_;
-  $consumed = $self->_param_colon_label($param, $consumed, $inner_parser);
-  $param->{required} = !$param->{named};
+sub _param_named {
+  my ($self, $param) = @_;
+
+  return unless
+    $self->ppi->content eq ':' &&
+    $self->ppi->next_token->isa('PPI::Token::Symbol');
+  $DB::single = 1;
+  $param->{required} = 1;
+  $param->{named} = 1;
+  $self->consume_token;
  
-  return unless $inner_parser->($consumed);
- 
-  $self->assert_token(')') if defined($param->{label});
-  1;
+  return $self->_param_variable($param);
 }
 
 sub _param_variable {
   my ($self, $param) = @_;
 
   my $ppi = $self->ppi;
+  return unless $ppi->isa('PPI::Token::Symbol');
   $ppi->symbol_type eq $ppi->raw_type or $self->error($ppi);
 
   $param->{sigil} = $ppi->raw_type;
-  $param->{variable_name} = $ppi->content;
+  $param->{variable_name} = $self->consume_token->content;
+
+  return 1;
 }
 
 
@@ -351,38 +365,6 @@ sub _tc_params {
     $list->add_element($self->tc(1));
   }
 
-}
-
-# Handle the boring bits of bracketed product, then call $code->($self, ...) 
-sub bracketed {
-  my ($self, $type, $code, $token, @args) = @_;
-
-  local $ERROR_LEVEL = $ERROR_LEVEL + 1;
-  my $ppi = $self->ppi;
-  return unless $ppi->content eq $type;
-
-  $self->consume_token; # consume '[';
-
-  # Get from the '[' token the to Strucure::Constructor 
-  $ppi = $ppi->parent;
-
-  $ppi->finish or $self->error($ppi, 
-    "Runaway '" . $ppi->braces . "' in" . $self->_parsing_area(1), 1);
-
-  my $new = PPI::Statement::Expression->new($token);
-  my $list = PPI::Structure::Constructor->new($ppi->start);
-
-  $new->add_element($list);
-
-  my $ret = $code->($self, $token, $list, @args);
-
-  $self->error($self->ppi)
-    if $self->ppi != $ppi->finish;
-
-  # Hmm we seem to have to call a private method. sucky
-  $self->_add_ws($list)->_set_finish($self->consume_token->clone);
-
-  return $new;
 }
 
 # Valid token for individual component of parameterized TC
@@ -420,22 +402,56 @@ sub _tc_union {
   return $tc;
 }
 
+# Handle the boring bits of bracketed product, then call $code->($self, ...) 
+sub bracketed {
+  my ($self, $type, $code, $token, @args) = @_;
+
+  local $ERROR_LEVEL = $ERROR_LEVEL + 1;
+  my $ppi = $self->ppi;
+  return unless $ppi->content eq $type;
+
+  $self->consume_token; # consume '[';
+
+  # Get from the '[' token the to Strucure::Constructor 
+  $ppi = $ppi->parent;
+
+  $ppi->finish or $self->error($ppi, 
+    "Runaway '" . $ppi->braces . "' in " . $self->_parsing_area(1), 1);
+
+  my $new = PPI::Statement::Expression->new($token);
+  my $list = PPI::Structure::Constructor->new($ppi->start);
+
+  $new->add_element($list);
+
+  my $ret = $code->($self, $token, $list, @args);
+
+  $self->error($self->ppi)
+    if $self->ppi != $ppi->finish;
+
+  # Hmm we seem to have to call a private method. sucky
+  $self->_add_ws($list)->_set_finish($self->consume_token->clone);
+
+  return $new;
+}
+
+# Work out what sort of production we are in for sane default error messages
 sub _parsing_area { 
   shift;
   my $height = shift || 0;
   my (undef, undef, undef, $sub) = caller($height+$ERROR_LEVEL);
 
-  return " type constraint" if $sub =~ /(?:\b|_)tc(?:\b|_)/;
-  return " parameter"       if $sub =~ /(?:\b|_)param(?:\b|_)/;
+  return "type constraint" if $sub =~ /(?:\b|_)tc(?:\b|_)/;
+  return "parameter"       if $sub =~ /(?:\b|_)param(?:\b|_)/;
 
   " unknown production ($sub)";
 }
 
+# error(PPI::Token $token, Str $msg?, Bool $no_in = 0)
 sub error {
   my ($self, $token, $msg, $no_in) = @_;
 
   unless ($msg) {
-    $msg = "Error parsing" . $self->_parsing_area(2);
+    $msg = "Error parsing " . $self->_parsing_area(2);
   }
 
   Carp::croak(
@@ -444,6 +460,15 @@ sub error {
            : " in '" . $token->statement . "'" 
     )
   );
+}
+
+sub assert_token {
+  my ($self, $need, $msg) = @_;
+
+  if ($self-ppi->content ne $need) {
+    $self->error($self->ppi, "'$need' expected whilst parsing " . $self->_parsing_area(2));
+  }
+  return $self->consume_token;
 }
 
 # Add $token to $collection, preserving WS/comment nodes prior to $token
@@ -490,7 +515,6 @@ sub _add_ws {
   where => 'WHERE',
   is    => 'TRAIT',
   does  => 'TRAIT',
-  '=>'  => ',',
 );
 
 sub _ident {
