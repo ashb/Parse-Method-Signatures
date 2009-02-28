@@ -49,6 +49,24 @@ test_param(
 );
 
 test_param(
+  Parse::Method::Signatures->new('$x!')->param(),
+  { required => 1,
+    sigil => '$',
+    variable_name => '$x',
+    __does => ["Parse::Method::Signatures::Param::Positional"],
+  }
+);
+
+test_param(
+  Parse::Method::Signatures->new('$x?')->param(),
+  { required => 0,
+    sigil => '$',
+    variable_name => '$x',
+    __does => ["Parse::Method::Signatures::Param::Positional"],
+  }
+);
+
+test_param(
   Parse::Method::Signatures->new('@x')->param(),
   { required => 1,
     sigil => '@',
@@ -77,8 +95,6 @@ test_param(
   }
 );
 
-local $TODO = '?!';
-
 test_param(
   Parse::Method::Signatures->new('$x?')->param(),
   { required => 0,
@@ -93,12 +109,40 @@ throws_ok {
   Parse::Method::Signatures->new(':foo( [$x, @y?])')->param(),
 } qr/^Cannot have optional parameters in an unpacked-array near '\@y' in '\$x, \@y\?' at /,
   q/Cannot have optional parameters in an unpacked-array near '@y' in '$x, @y?' at /;
-undef $TODO;
 
 throws_ok {
   Parse::Method::Signatures->new(':foo( [$x, :@y])')->param(),
 } qr/^Cannot have named parameters in an unpacked-array near ':' in '\$x, :\@y' at /,
   q/Cannot have named parameters in an unpacked-array near ':' in '$x, :@y' at /;
+
+throws_ok {
+  Parse::Method::Signatures->new(':foo( {$x, :@y])')->param(),
+} qr/^Runaway '{}' in unpacked parameter near '{\$x, :\@y' at /,
+  q/Runaway '{}' in unpacked parameter near '{\$x, :\@y' at /;
+
+test_param(
+  my $param = Parse::Method::Signatures->new(':foo( {:$x, @y})')->param(),
+  { label => 'foo',
+    sigil => '$',
+    required => 0,
+    __does => ['Parse::Method::Signatures::Param::Unpacked::Hash'],
+  }
+);
+
+test_param(
+  $param->params->[0],
+  { required => 0,
+    sigil => '$',
+    variable_name => '$x'
+  }
+);
+test_param(
+  $param->params->[1],
+  { required => 1,
+    sigil => '@',
+    variable_name => '@y'
+  }
+);
 #test_param(
 #  Parse::Method::Signatures->new(':foo( [$x, @y?])')->param(),
 #  { required => 1,
@@ -126,5 +170,6 @@ sub test_param {
 
   my $p = { %$param };
   delete $p->{_trait_namespace};
+  delete $p->{_params};
   eq_or_diff($p, $wanted, $msg);
 }

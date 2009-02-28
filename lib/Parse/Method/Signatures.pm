@@ -307,7 +307,7 @@ sub _param_labeled {
   $param->{label} = $self->consume_token->content;
 
   $self->assert_token('(');
-  $self->_param_unpacked($param) 
+  $self->_unpacked_param($param) 
     || $self->_param_variable($param)
     || $self->error($self->ppi);
 
@@ -316,10 +316,10 @@ sub _param_labeled {
   return 1;
 }
 
-sub _param_unpacked {
+sub _unpacked_param {
   my ($self, $param) = @_;
 
-  return $self->bracketed('[', \&unpacked_array, $param); # ||
+  return $self->bracketed('[', \&unpacked_array, $param) ||
          $self->bracketed('{', \&unpacked_hash, $param);
 }
 
@@ -346,7 +346,40 @@ sub _param_variable {
   $param->{sigil} = $ppi->raw_type;
   $param->{variable_name} = $self->consume_token->content;
 
+  if ($self->ppi->class eq 'PPI::Token::Operator') {
+    my $c = $self->ppi->content;
+    if ($c eq '?') {
+      $param->{required} = 0;
+      $self->consume_token;
+    } elsif ($c eq '!') {
+      $param->{required} = 1;
+      $self->consume_token;
+    }
+  }
+
   return 1;
+}
+
+sub unpacked_hash {
+  my ($self, $list, $param) = @_;
+
+  my $params = [];
+  while ($self->ppi->content ne '}') {
+    my $watermark = $self->ppi;
+    my $param = $self->param
+      or $self->error($self->ppi);
+
+    $self->error($watermark, "Cannot have positional parameters in an unpacked-array")
+      if $param->sigil eq '$' && PositionalParam->check($param);
+    push @$params, $param;
+
+    last if $self->ppi->content eq '}';
+    $self->assert_token(',');
+  }
+  $param->{params} = $params;
+  $param->{sigil} = '$';
+  $param->{unpacking} = 'Hash';
+  return $param;
 }
 
 sub unpacked_array {
@@ -488,6 +521,8 @@ sub _parsing_area {
   my (undef, undef, undef, $sub) = caller($height+$ERROR_LEVEL);
 
   return "type constraint" if $sub =~ /(?:\b|_)tc(?:\b|_)/;
+  return "unpacked parameter"      
+                           if $sub =~ /(?:\b|_)unpacked(?:\b|_)/;
   return "parameter"       if $sub =~ /(?:\b|_)param(?:\b|_)/;
 
   " unknown production ($sub)";
