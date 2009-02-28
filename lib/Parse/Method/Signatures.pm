@@ -126,6 +126,10 @@ sub parse {
   # While we're att it lets fixup $: $? and $!
   $self->_replace_magic($doc);
 
+  # (Str :$x) yields a label of "Str :"
+  # (Foo Bar :$x) yields a label of "Bar :"
+  $self->_replace_labels($doc);
+
   return $doc;
 }
 
@@ -158,6 +162,19 @@ sub _replace_magic {
 
     $node->insert_after(new PPI::Token::Operator($op));
     $node->insert_after(new PPI::Token::Cast('$'));
+    $node->delete;
+  }
+}
+
+sub _replace_labels {
+  my ($self, $doc) = @_;
+
+  foreach my $node ( @{ $doc->find('Token::Label') || [] } ) {
+    my ($word, $ws) = $node->content =~ /^(.*?)(\s+)?:$/s or next;
+
+    $node->insert_after(new PPI::Token::Operator(':'));
+    $node->insert_after(new PPI::Token::Whitespace($ws)) if defined $ws;
+    $node->insert_after(new PPI::Token::Word($word));
     $node->delete;
   }
 }
@@ -286,16 +303,21 @@ sub param {
     $class_meth = 1;
   }
 
+  # Also used to check if a anything has been consumed
+  my $err_ctx = $self->ppi;
+
   my $param = {
-    required => 1
+    required => 1,
   };
 
+  $self->_param_typed($param);
+
   $self->_param_opt_or_req(
-    $self->_param_labeled($param, 0)
-      || $self->_param_named($param, 0)
-      || $self->_param_typed($param, 0)
-      || $self->_param_variable($param, 0)
-  ) || return;#$self->error($self->ppi);
+    $self->_param_labeled($param)
+      || $self->_param_named($param)
+      || $self->_param_variable($param)
+  ) or ($err_ctx == $self->ppi and return)
+    or $self->error($err_ctx);
 
   $self->_param_constraint_or_traits($param);
 
@@ -428,6 +450,7 @@ sub _param_typed {
   my $tc = $self->tc
     or return;
 
+
   $tc = $self->type_constraint_class->new(
     ppi  => $tc,
     $self->has_type_constraint_callback
@@ -436,8 +459,6 @@ sub _param_typed {
   );
   $param->{type_constraints} = $tc;
 
-  $self->_param_variable($param)
-    or $self->error($self->ppi);
   return $param;
 }
   
@@ -446,13 +467,19 @@ sub _param_variable {
   my ($self, $param) = @_;
 
   my $ppi = $self->ppi;
-  return unless $ppi->isa('PPI::Token::Symbol')
-             || $ppi->isa('PPI::Token::Cast');
+  my $class = $ppi->class;
+  return unless $class eq 'PPI::Token::Symbol'
+             || $class eq 'PPI::Token::Cast';
 
-  $ppi->symbol_type eq $ppi->raw_type or $self->error($ppi);
+  if ($class eq 'PPI::Token::Symbol') {
+    $ppi->symbol_type eq $ppi->raw_type or $self->error($ppi);
 
-  $param->{sigil} = $ppi->raw_type;
-  $param->{variable_name} = $self->consume_token->content;
+    $param->{sigil} = $ppi->raw_type;
+    $param->{variable_name} = $self->consume_token->content;
+  } else {
+    $param->{sigil} = $param->{variable_name}
+                    = $self->consume_token->content;
+  }
 
   return $param;
 }

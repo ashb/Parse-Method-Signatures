@@ -19,8 +19,8 @@ throws_ok {
 
 throws_ok {
   Parse::Method::Signatures->new("Foo[Bar:]")->tc()
-} qr/^\QError parsing type constraint near 'Bar:' in 'Bar:' at\E/,
-  q/Error parsing type constraint near 'Bar:' in 'Bar:' at/;
+} qr/^\QError parsing type constraint near ':' in 'Bar:' at\E/,
+  q/Error parsing type constraint near ':' in 'Bar:' at/;
 
 is( Parse::Method::Signatures->new("ArrayRef")->tc(), "ArrayRef");
 is( Parse::Method::Signatures->new("ArrayRef[Str => Str]")->tc(), "ArrayRef[Str => Str]");
