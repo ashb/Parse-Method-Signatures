@@ -56,7 +56,7 @@ has '+_trait_namespace' => (
 sub _stringify_type_constraints {
     my ($self) = @_;
     return $self->has_type_constraints
-        ? $self->type_constraints->str . q{ }
+        ? $self->type_constraints->to_string . q{ }
         : q{};
 }
 

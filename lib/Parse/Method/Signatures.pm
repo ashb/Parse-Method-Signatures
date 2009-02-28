@@ -269,12 +269,13 @@ sub param {
     $class_meth = 1;
   }
 
-  my $param = {};
-
-  $param->{required} = 1;
+  my $param = {
+    required => 1
+  };
 
   $self->_param_labeled($param, 0)
     || $self->_param_named($param, 0)
+    || $self->_param_typed($param, 0)
     || $self->_param_variable($param, 0)
     || return;#$self->error($self->ppi);
 
@@ -382,6 +383,26 @@ sub _param_named {
   return $self->_param_variable($param);
 }
 
+sub _param_typed {
+  my ($self, $param) = @_;
+
+  my $tc = $self->tc
+    or return;
+
+  $tc = $self->type_constraint_class->new(
+    ppi  => $tc,
+    $self->has_type_constraint_callback
+      ? (tc_callback => $self->type_constraint_callback)
+      : ()
+  );
+  $param->{type_constraints} = $tc;
+
+  $self->_param_variable($param)
+    or $self->error($self->ppi);
+  return 1;
+}
+  
+
 sub _param_variable {
   my ($self, $param) = @_;
 
@@ -459,8 +480,7 @@ sub tc {
 
   my $ident = $self->_ident;
 
-  $self->error($self->ppi)
-    if !$ident && $required;
+  $ident or ($required and $self->error($self->ppi)) or return;
 
   return $self->_tc_union(
     $self->bracketed('[', \&_tc_params, $ident)
@@ -475,7 +495,7 @@ sub tc {
 sub _tc_params {
   my ($self, $list, $tc) = @_;
 
-  my $new = PPI::Statement::Expression->new($tc);
+  my $new = PPI::Statement::Expression->new($tc->clone);
   $new->add_element($list);
 
   $self->_add_with_ws($list, $self->_tc_param);

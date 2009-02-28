@@ -6,17 +6,14 @@ use Parse::Method::Signatures::Types qw/TypeConstraint/;
 
 use namespace::clean -except => 'meta';
 
-has str => (
-  is       => 'ro',
-  isa      => Str,
-  required => 1
-);
-
 # I'm very lazy - lets just get this working/storing things for now
-has data => (
+has ppi => (
   is       => 'ro',
-  isa      => Str|HashRef,
+  isa      => 'PPI::Element',
   required => 1,
+  handles => {
+    'to_string' => 'content'
+  }
 );
 
 has tc => (
