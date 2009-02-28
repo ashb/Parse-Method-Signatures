@@ -41,7 +41,7 @@ throws_ok {
 
 test_param(
   Parse::Method::Signatures->new('$x')->param(),
-  { required => 0,
+  { required => 1,
     sigil => '$',
     variable_name => '$x',
     __does => ["Parse::Method::Signatures::Param::Positional"],
@@ -50,7 +50,7 @@ test_param(
 
 test_param(
   Parse::Method::Signatures->new('@x')->param(),
-  { required => 0,
+  { required => 1,
     sigil => '@',
     variable_name => '@x',
     __does => ["Parse::Method::Signatures::Param::Positional"],
@@ -59,7 +59,7 @@ test_param(
 
 test_param(
   Parse::Method::Signatures->new(':$x')->param(),
-  { required => 1,
+  { required => 0,
     sigil => '$',
     variable_name => '$x',
     __does => ["Parse::Method::Signatures::Param::Named"],
@@ -69,13 +69,45 @@ test_param(
 # ":y($x)" is an important test, as this tests the replacment of PPI's regexp operators
 test_param(
   Parse::Method::Signatures->new(':y($x)')->param(),
-  { required => 1,
+  { required => 0,
     sigil => '$',
     variable_name => '$x',
     label => 'y',
     __does => ["Parse::Method::Signatures::Param::Named"],
   }
 );
+
+local $TODO = '?!';
+
+test_param(
+  Parse::Method::Signatures->new('$x?')->param(),
+  { required => 0,
+    sigil => '$',
+    variable_name => '$x',
+    __does => ["Parse::Method::Signatures::Param::Positional"],
+  }
+);
+
+
+throws_ok {
+  Parse::Method::Signatures->new(':foo( [$x, @y?])')->param(),
+} qr/^Cannot have optional parameters in an unpacked-array near '\@y' in '\$x, \@y\?' at /,
+  q/Cannot have optional parameters in an unpacked-array near '@y' in '$x, @y?' at /;
+undef $TODO;
+
+throws_ok {
+  Parse::Method::Signatures->new(':foo( [$x, :@y])')->param(),
+} qr/^Cannot have named parameters in an unpacked-array near ':' in '\$x, :\@y' at /,
+  q/Cannot have named parameters in an unpacked-array near ':' in '$x, :@y' at /;
+#test_param(
+#  Parse::Method::Signatures->new(':foo( [$x, @y?])')->param(),
+#  { required => 1,
+#    sigil => '$',
+#    variable_name => '$x',
+#    label => 'y',
+#    __does => ["Parse::Method::Signatures::Param::Named"],
+#  }
+#);
 
 sub test_param {
   my ($param, $wanted, $msg) = @_;

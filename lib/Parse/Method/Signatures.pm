@@ -2,12 +2,6 @@ package Parse::Method::Signatures;
 
 use Moose;
 use MooseX::Types::Moose qw/ArrayRef HashRef ScalarRef CodeRef Int Str/;
-use Text::Balanced qw(
-  extract_codeblock
-  extract_variable
-  extract_quotelike
-  extract_bracketed
-);
 
 use Data::Dump qw/pp/;
 use PPI;
@@ -280,22 +274,8 @@ sub param {
 
   my $param = {};
 
-  #$self->_param_possibly_labeled(
-  #  $param, $self->_param_tc($param, 0),
-  #  sub {
-  #    my $consumed = shift;
-  #    $self->_param_array($param)
-  #    || $self->_param_hash($param)
-  #    || $self->_param_variable($param, $consumed)
-  #  }
-  #) || return;
+  $param->{required} = 1;
 
-  # hack
-  $param->{required} = 0;
-
-  #$self->_param_array($param)
-  #|| $self->_param_hash($param)
-  #|| $self->_param_variable($param, $consumed)
   $self->_param_labeled($param, 0)
     || $self->_param_named($param, 0)
     || $self->_param_variable($param, 0)
@@ -323,17 +303,24 @@ sub _param_labeled {
     if $self->ppi->content =~ /[^-\w]/;
 
   $param->{named} = 1;
-  $param->{required} = 1;
+  $param->{required} = 0;
   $param->{label} = $self->consume_token->content;
 
   $self->assert_token('(');
-  0#$self->_param_unpacked($param) 
+  $self->_param_unpacked($param) 
     || $self->_param_variable($param)
-    || $self->error;
+    || $self->error($self->ppi);
 
   $self->assert_token(')');
 
   return 1;
+}
+
+sub _param_unpacked {
+  my ($self, $param) = @_;
+
+  return $self->bracketed('[', \&unpacked_array, $param); # ||
+         $self->bracketed('{', \&unpacked_hash, $param);
 }
 
 sub _param_named {
@@ -342,7 +329,7 @@ sub _param_named {
   return unless
     $self->ppi->content eq ':' &&
     $self->ppi->next_token->isa('PPI::Token::Symbol');
-  $param->{required} = 1;
+  $param->{required} = 0;
   $param->{named} = 1;
   $self->consume_token;
  
@@ -362,6 +349,31 @@ sub _param_variable {
   return 1;
 }
 
+sub unpacked_array {
+  my ($self, $list, $param) = @_;
+
+  my $params = [];
+  while ($self->ppi->content ne ']') {
+    my $watermark = $self->ppi;
+    my $param = $self->param
+      or $self->error($self->ppi);
+
+    $self->error($watermark, "Cannot have named parameters in an unpacked-array")
+      if NamedParam->check($param);
+
+    $self->error($watermark, "Cannot have optional parameters in an unpacked-array")
+      unless $param->required;
+
+    push @$params, $param;
+
+    last if $self->ppi->content eq ']';
+    $self->assert_token(',');
+  }
+  $param->{params} = $params;
+  $param->{sigial} = '$';
+  $param->{unpacking} = 'Array';
+  return $param;
+}
 
 sub tc {
   my ($self, $required) = @_;
@@ -383,7 +395,10 @@ sub tc {
 # Dict[Str => Str]
 # Dict["foo bar", Baz]
 sub _tc_params {
-  my ($self, $tc, $list) = @_;
+  my ($self, $list, $tc) = @_;
+
+  my $new = PPI::Statement::Expression->new($tc);
+  $new->add_element($list);
 
   $self->_add_with_ws($list, $self->_tc_param);
 
@@ -396,6 +411,7 @@ sub _tc_params {
     $list->add_element($self->tc(1));
   }
 
+  return $new;
 }
 
 # Valid token for individual component of parameterized TC
@@ -438,7 +454,7 @@ sub _stringify_last {
 
 # Handle the boring bits of bracketed product, then call $code->($self, ...) 
 sub bracketed {
-  my ($self, $type, $code, $token, @args) = @_;
+  my ($self, $type, $code, @args) = @_;
 
   local $ERROR_LEVEL = $ERROR_LEVEL + 1;
   my $ppi = $self->ppi;
@@ -452,12 +468,9 @@ sub bracketed {
   $ppi->finish or $self->error($ppi, 
     "Runaway '" . $ppi->braces . "' in " . $self->_parsing_area(1), 1);
 
-  my $new = PPI::Statement::Expression->new($token);
   my $list = PPI::Structure::Constructor->new($ppi->start);
 
-  $new->add_element($list);
-
-  my $ret = $code->($self, $token, $list, @args);
+  my $ret = $code->($self, $list, @args);
 
   $self->error($self->ppi)
     if $self->ppi != $ppi->finish;
@@ -465,7 +478,7 @@ sub bracketed {
   # Hmm we seem to have to call a private method. sucky
   $self->_add_ws($list)->_set_finish($self->consume_token->clone);
 
-  return $new;
+  return $ret;
 }
 
 # Work out what sort of production we are in for sane default error messages
