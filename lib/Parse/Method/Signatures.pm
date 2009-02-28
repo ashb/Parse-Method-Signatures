@@ -290,11 +290,12 @@ sub param {
     required => 1
   };
 
-  $self->_param_labeled($param, 0)
-    || $self->_param_named($param, 0)
-    || $self->_param_typed($param, 0)
-    || $self->_param_variable($param, 0)
-    || return;#$self->error($self->ppi);
+  $self->_param_opt_or_req(
+    $self->_param_labeled($param, 0)
+      || $self->_param_named($param, 0)
+      || $self->_param_typed($param, 0)
+      || $self->_param_variable($param, 0)
+  ) || return;#$self->error($self->ppi);
 
   $self->_param_constraint_or_traits($param);
 
@@ -307,6 +308,25 @@ sub param {
       : $param;
 }
 
+sub _param_opt_or_req {
+  my ($self, $param) = @_;
+
+  return unless $param;
+
+  if ($self->ppi->class eq 'PPI::Token::Operator') {
+    my $c = $self->ppi->content;
+    if ($c eq '?') {
+      $param->{required} = 0;
+      $self->consume_token;
+    } elsif ($c eq '!') {
+      $param->{required} = 1;
+      $self->consume_token;
+    }
+  }
+  return $param;
+
+}
+
 sub _param_constraint_or_traits {
   my ($self, $param) = @_;
 
@@ -315,6 +335,7 @@ sub _param_constraint_or_traits {
     # No op;
 
   }
+  return $param;
 }
 
 sub _param_where {
@@ -343,7 +364,7 @@ sub _param_where {
 
   $self->_set_ppi($ppi->finish);
   $self->consume_token;
-  return 1;
+  return $param;
 }
 
 sub _param_traits {
@@ -352,6 +373,7 @@ sub _param_traits {
              && $self->ppi->lex eq 'TRAIT';
 
   $self->consume_token;
+  return $param;
 }
 
 sub _param_labeled {
@@ -377,7 +399,7 @@ sub _param_labeled {
 
   $self->assert_token(')');
 
-  return 1;
+  return $param;
 }
 
 sub _unpacked_param {
@@ -416,7 +438,7 @@ sub _param_typed {
 
   $self->_param_variable($param)
     or $self->error($self->ppi);
-  return 1;
+  return $param;
 }
   
 
@@ -424,24 +446,15 @@ sub _param_variable {
   my ($self, $param) = @_;
 
   my $ppi = $self->ppi;
-  return unless $ppi->isa('PPI::Token::Symbol');
+  return unless $ppi->isa('PPI::Token::Symbol')
+             || $ppi->isa('PPI::Token::Cast');
+
   $ppi->symbol_type eq $ppi->raw_type or $self->error($ppi);
 
   $param->{sigil} = $ppi->raw_type;
   $param->{variable_name} = $self->consume_token->content;
 
-  if ($self->ppi->class eq 'PPI::Token::Operator') {
-    my $c = $self->ppi->content;
-    if ($c eq '?') {
-      $param->{required} = 0;
-      $self->consume_token;
-    } elsif ($c eq '!') {
-      $param->{required} = 1;
-      $self->consume_token;
-    }
-  }
-
-  return 1;
+  return $param;
 }
 
 sub unpacked_hash {
@@ -713,6 +726,7 @@ sub consume_token {
 __PACKAGE__->meta->make_immutable;
 
 
+# Extra PPI classes to represent what we want.
 { package 
     PPI::Statement::Expression::Union;
   use base 'PPI::Statement::Expression';
