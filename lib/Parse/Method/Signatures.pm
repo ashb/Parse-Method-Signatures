@@ -35,13 +35,6 @@ has 'offset' => (
     default => 0,
 );
 
-has '_input' => (
-    is         => 'ro',
-    isa        => ScalarRef,
-    init_arg   => undef,
-    lazy_build => 1
-);
-
 has 'signature_class' => (
     is      => 'ro',
     isa     => Str,
@@ -90,11 +83,6 @@ sub BUILD {
             param_class
             type_constraint_class
         /;
-}
-
-sub _build__input {
-    my $var = substr($_[0]->input, $_[0]->offset);
-    return \$var;
 }
 
 sub create_param {
@@ -159,7 +147,7 @@ sub _replace_regexps {
 
 sub _build_ppi {
   my ($self) = @_;
-  return $self->ppi_doc->find_first("PPI::Statement")->first_element;
+  return $self->ppi_doc->first_token;
 }
 
 # signature: O_PAREN
@@ -176,15 +164,17 @@ sub signature {
   my $self = shift;
 
   $self = $self->new(@_) unless blessed($self);
+  $DB::single = 1;
 
   $self->assert_token('(');
 
   my $args = {};
   my $params = [];
 
+
   my $param = $self->param;
 
-  if ($param && $self->token->{type} eq ':') {
+  if ($param && $self->ppi->content eq ':') {
     # That param was actualy the invocant
     $args->{invocant} = $param;
     croak "Invocant cannot be named"
@@ -208,18 +198,19 @@ sub signature {
     my $greedy = $param->sigil ne '$' ? $param : undef;
     my $opt_pos_param = !$param->required;
 
-    while ($self->token->{type} eq ',') {
+    while ($self->ppi->content eq ',') {
       $self->consume_token;
 
+      my $err_ctx = $self->ppi;
       $param = $self->param;
-      croak "parameter expected"
+      $self->error($err_ctx, "Parameter expected")
         if !$param;
 
       my $is_named = NamedParam->check($param);
       if (!$is_named) {
         if ($param->required && $opt_pos_param) {
-          croak "Invalid: Required positional param '"
-            . $param->variable_name . "' found after optional one.\n";
+          $self->error($err_ctx, "Invalid: Required positional param " .
+            " found after optional one");
         }
         if ($greedy) {
           croak "Invalid: Un-named parameter '" . $param->variable_name
@@ -239,7 +230,8 @@ sub signature {
 
   my $sig = $self->signature_class->new($args);
 
-  return wantarray ? ($sig, $self->remaining_input) : $sig;
+  #return wantarray ? ($sig, $self->remaining_input) : $sig;
+  return $sig;
 }
 
 
@@ -279,7 +271,9 @@ sub param {
   $self->_param_labeled($param, 0)
     || $self->_param_named($param, 0)
     || $self->_param_variable($param, 0)
-    || $self->error($self->ppi);
+    || return;#$self->error($self->ppi);
+
+  $self->_param_constraint_or_traits($param);
 
   $param = $self->create_param($param);
 
@@ -288,6 +282,12 @@ sub param {
       : wantarray
       ? ($param, "")
       : $param;
+}
+
+sub _param_constraint_or_traits {
+  my ($self, $param) = @_;
+
+
 }
 
 sub _param_labeled {
@@ -413,7 +413,6 @@ sub tc {
 
   my $ident = $self->_ident;
 
-  #TODO: Work out how to give some previous context to this.
   $self->error($self->ppi)
     if !$ident && $required;
 
@@ -524,6 +523,7 @@ sub _parsing_area {
   return "unpacked parameter"      
                            if $sub =~ /(?:\b|_)unpacked(?:\b|_)/;
   return "parameter"       if $sub =~ /(?:\b|_)param(?:\b|_)/;
+  return "signature"       if $sub =~ /(?:\b|_)signature(?:\b|_)/;
 
   " unknown production ($sub)";
 }
