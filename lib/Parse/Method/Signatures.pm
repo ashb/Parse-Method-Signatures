@@ -122,6 +122,10 @@ sub parse {
   # just store different token wise.
   $self->_replace_regexps($doc);
 
+  # ($, $x) parses the $, as a single var. not what we want. FIX UP
+  # While we're att it lets fixup $: $? and $!
+  $self->_replace_magic($doc);
+
   return $doc;
 }
 
@@ -141,6 +145,19 @@ sub _replace_regexps {
     # $node->insert_after($_) for @to_add;
     $node->__insert_after($_) for @to_add;
 
+    $node->delete;
+  }
+}
+
+
+sub _replace_magic {
+  my ($self, $doc) = @_;
+
+  foreach my $node ( @{ $doc->find('Token::Magic') || [] } ) {
+    my ($op) = $node->content =~ /^\$([,?:!])$/ or next;
+
+    $node->insert_after(new PPI::Token::Operator($op));
+    $node->insert_after(new PPI::Token::Cast('$'));
     $node->delete;
   }
 }
@@ -826,11 +843,30 @@ Additionally, default value specifications are not evaluated which means that
 no such lexical or similar errors will not be produced by this module.
 Constant folding will also not be performed.
 
+There are certain constructs that are simply too much hassle to avoid when the
+work around is simple. Currently the only cases that are known to parse wrong
+are when using anonymous variables (i.e. just sigils) in unpacked arrays. Take
+the following example:
+
+ method foo (ArrayRef [$, $], $some_value_we_care_about) {
+
+In this case the C<$]> is treated as one of perl's magic variables
+(specifically, the patch level of the Perl interpreter) rather than a C<$>
+followed by a C<]> as was almost certainly intended. The work around for this
+is simple: introduce a space between the charcters:
+
+ method foo (ArrayRef [ $, $ ], $some_value_we_care_about) {
+
+The same applies
+
 =head1 AUTHOR
 
 Ash Berlin <ash@cpan.org>.
 
 Thanks to Florian Ragwitz <rafl@debian.org>.
+
+Many thanks to Piers Crawley to showing me the way to refactor my spaghetti
+code into something more manageable.
 
 =head1 SEE ALSO
 
