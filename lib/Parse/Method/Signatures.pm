@@ -147,7 +147,13 @@ sub _replace_regexps {
 
 sub _build_ppi {
   my ($self) = @_;
-  return $self->ppi_doc->first_token;
+  my $ppi = $self->ppi_doc->first_token;
+
+  if ($ppi->class eq 'PPI::Token::Word' && exists $LEXTABLE{"$ppi"}) {
+    bless $ppi, "PPI::Token::LexSymbol";
+    $ppi->{lex} = $LEXTABLE{"$ppi"};
+  }
+  return $ppi;
 }
 
 # signature: O_PAREN
@@ -164,7 +170,6 @@ sub signature {
   my $self = shift;
 
   $self = $self->new(@_) unless blessed($self);
-  $DB::single = 1;
 
   $self->assert_token('(');
 
@@ -287,7 +292,48 @@ sub param {
 sub _param_constraint_or_traits {
   my ($self, $param) = @_;
 
+  while ($self->_param_where($param) ||
+         $self->_param_traits($param) ) {
+    # No op;
 
+  }
+}
+
+sub _param_where {
+  my ($self, $param) = @_;
+
+  return unless $self->ppi->isa('PPI::Token::LexSymbol')
+             && $self->ppi->lex eq 'WHERE';
+
+  $self->consume_token;
+
+  $param->{constraints} ||= [];
+
+  my $ppi = $self->ppi;
+
+  $self->error($ppi, "Block expected after where")
+    unless $ppi->class eq 'PPI::Token::Structure'
+        && $ppi->content eq '{';
+
+  # Go from token to block
+  $ppi = $ppi->parent;
+
+  $ppi->finish or $self->error($ppi, 
+    "Runaway '" . $ppi->braces . "' in " . $self->_parsing_area(1), 1);
+
+  push @{$param->{constraints}}, $ppi->content;
+
+  $self->_set_ppi($ppi->finish);
+  $self->consume_token;
+  return 1;
+}
+
+sub _param_traits {
+  my ($self, $param) = @_;
+  return unless $self->ppi->isa('PPI::Token::LexSymbol')
+             && $self->ppi->lex eq 'TRAIT';
+
+  $self->consume_token;
 }
 
 sub _param_labeled {
@@ -365,13 +411,13 @@ sub unpacked_hash {
 
   my $params = [];
   while ($self->ppi->content ne '}') {
-    my $watermark = $self->ppi;
-    my $param = $self->param
+    my $errctx = $self->ppi;
+    my $p = $self->param
       or $self->error($self->ppi);
 
-    $self->error($watermark, "Cannot have positional parameters in an unpacked-array")
-      if $param->sigil eq '$' && PositionalParam->check($param);
-    push @$params, $param;
+    $self->error($errctx, "Cannot have positional parameters in an unpacked-array")
+      if $p->sigil eq '$' && PositionalParam->check($p);
+    push @$params, $p;
 
     last if $self->ppi->content eq '}';
     $self->assert_token(',');
@@ -604,8 +650,8 @@ sub _ident {
 
   my $ppi = $self->ppi;
   return $self->consume_token
-    if $ppi->isa('PPI::Token::Word') &&
-       !exists $LEXTABLE{"$ppi"};
+    if $ppi->class eq 'PPI::Token::Word';
+  return undef;
 }
 
 sub consume_token {
@@ -619,6 +665,10 @@ sub consume_token {
     last if $ppi->significant;
   }
 
+  if ($ppi->class eq 'PPI::Token::Word' && exists $LEXTABLE{"$ppi"}) {
+    bless $ppi, "PPI::Token::LexSymbol";
+    $ppi->{lex} = $LEXTABLE{"$ppi"};
+  }
   $self->_set_ppi( $ppi );
   return $ret;
 }
@@ -627,13 +677,23 @@ __PACKAGE__->meta->make_immutable;
 
 
 { package 
-  PPI::Statement::Expression::Union;
+    PPI::Statement::Expression::Union;
   use base 'PPI::Statement::Expression';
 
   sub content {
     my ($self) = @_;
 
     join('|', $self->children );
+  }
+}
+
+{ package 
+    PPI::Token::LexSymbol;
+  use base 'PPI::Token::Word';
+
+  sub lex {
+    my ($self) = @_;
+    return $self->{lex}
   }
 }
 

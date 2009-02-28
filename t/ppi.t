@@ -10,9 +10,7 @@ use_ok("Parse::Method::Signatures") or BAIL_OUT("$@");
 is( Parse::Method::Signatures->new("ArrayRef")->_ident(), "ArrayRef");
 is( Parse::Method::Signatures->new("where::Foo")->_ident(), "where::Foo");
 
-{ local $TODO = "sort out lextable";
 is( Parse::Method::Signatures->new("where Foo")->_ident(), undef);
-}
 
 throws_ok {
   Parse::Method::Signatures->new("Foo[Bar")->tc()
