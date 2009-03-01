@@ -333,6 +333,7 @@ sub param {
     $self->_param_labeled($param)
       || $self->_param_named($param)
       || $self->_param_variable($param)
+      || $self->_unpacked_param($param)
   ) or ($err_ctx == $self->ppi and return)
     or $self->error($err_ctx);
 
@@ -568,7 +569,7 @@ sub unpacked_array {
     $self->assert_token(',');
   }
   $param->{params} = $params;
-  $param->{sigial} = '$';
+  $param->{sigil} = '$';
   $param->{unpacking} = 'Array';
   return $param;
 }
@@ -595,6 +596,8 @@ sub _tc_params {
 
   my $new = PPI::Statement::Expression->new($tc->clone);
   $new->add_element($list);
+
+  return $new if $self->ppi->content eq ']';
 
   $self->_add_with_ws($list, $self->_tc_param);
 

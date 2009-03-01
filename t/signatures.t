@@ -61,6 +61,7 @@ my @sigs = (
     ['($x, %y)',                'positinal scalar and hash'],
     ['([$x, $y])',              'simple array ref unpacking'],
     ['(ArrayRef [$x, $y])',     'simple array ref unpacking with unparameterized type', 'TODO'],
+    ['(ArrayRef[] [$x, $y])',   'simple array ref unpacking with empty parameterized type',],
     ['([@x])',                  'array ref unpacking into array'],
     ['([$x, $y, @rest])',       'array ref unpacking into scalars and arrays'],
     ['($x, [$y, $z, @rest])',   'array ref unpacking combined with normal positionals'],
