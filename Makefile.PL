@@ -13,7 +13,7 @@ requires 'MooseX::Types';
 requires 'MooseX::Types::Moose';
 requires 'MooseX::Types::Structured';
 requires 'namespace::clean';
-requires 'Text::Balanced' => 2.000000;
+requires 'PPI' => '1.203';
 
 test_requires 'aliased';
 test_requires 'Test::More';

@@ -882,6 +882,10 @@ __PACKAGE__->meta->make_immutable;
   override content => sub {
     return '"' . super() . '"';
   };
+
+  sub string {
+    return $_[0]->PPI::Token::Word::content();
+  }
   no Moose;
 }
 

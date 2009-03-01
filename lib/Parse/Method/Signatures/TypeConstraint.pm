@@ -73,7 +73,7 @@ sub _params_node {
     my ($self, $data) = @_;
     return unless $data->isa('PPI::Statement::Expression::TCParams');
 
-    my @params = map { $self->_walk_data($_) } $data->first_element->children;
+    my @params = map { $self->_walk_data($_) } @{$data->params};
     my $type = $self->_invoke_callback($data->type);
     sub { $type->parameterize(@params) }
 }
@@ -85,7 +85,11 @@ sub _str_node {
                || $data->isa('PPI::Token::Number')
                || $data->isa('PPI::Token::Quote');
 
-    sub { $data->content };
+    sub { 
+      $data->isa('PPI::Token::Number') 
+          ? $data->content
+          : $data->string
+    };
 }
 
 sub _invoke_callback {

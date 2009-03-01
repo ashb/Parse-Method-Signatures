@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 36;
+use Test::More tests => 38;
 use Test::Differences;
 use Test::Moose;
 use MooseX::Types::Structured qw/Dict/;
@@ -89,7 +89,11 @@ BEGIN {
             return $tc->find_registered_constraint($name);
         },
     );
-    is($param->meta_type_constraint->name, 'MooseX::Types::Structured::Dict[foo,Int]');
+    my $tc = $param->meta_type_constraint;
+    is($tc->name, 'MooseX::Types::Structured::Dict[foo,Int]');
+    ok($tc->check({foo => 2}), "TC behaves right");
+    ok(!$tc->check({foo => "str"}), "TC behaves right");
+    ok(!$tc->check({Foo => "str"}), "TC behaves right");
 }
 
 =for later
