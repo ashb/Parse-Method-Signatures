@@ -51,6 +51,8 @@ my @sigs = (
                                 'complex with constraint'],
     ['(Str $name, Bool :$excited = 0)',
                                 'complex with default'],
+    [q#(SomeClass $thing where { $_->can('stuff') })#, 
+                                'complex with constraint'],
     [q#(SomeClass $thing where { $_->can('stuff') }: Str $bar = "apan", Int :$baz = 42 where { $_ % 2 == 0 } where { $_ > 10 })#,
                                 'complex invocant, defaults and constraints'],
     ['(@x)',                    'positional array'],

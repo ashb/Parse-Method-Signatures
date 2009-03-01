@@ -15,6 +15,7 @@ use namespace::clean -except => 'meta';
 our $VERSION = '1.002000';
 our $ERROR_LEVEL = 0;
 our %LEXTABLE;
+our $DEBUG = $ENV{PMS_DEBUG} || 0;
 
 # Setup what we need for specific PPI subclasses
 @PPI::Token::EOF::ISA = 'PPI::Token';
@@ -130,6 +131,10 @@ sub parse {
   # (Foo Bar :$x) yields a label of "Bar :"
   $self->_replace_labels($doc);
 
+  # This one is actually a bug in PPI, rather than just an odity
+  # (Str $x = 0xfF) parses as "Oxf" and a word of "F"
+  $self->_fixup_hex($doc);
+
   return $doc;
 }
 
@@ -179,6 +184,19 @@ sub _replace_labels {
   }
 }
 
+sub _fixup_hex {
+  my ($self, $doc) = @_;
+
+  foreach my $node ( @{ $doc->find('Token::Number::Hex') || [] } ) {
+    my $next = $node->next_token;
+    next unless $next->isa('PPI::Token::Word') 
+             && $next->content =~ /^[0-9a-f]+$/i;
+
+    $node->add_content($next->content);
+    $next->delete;
+  }
+}
+
 sub _build_ppi {
   my ($self) = @_;
   my $ppi = $self->ppi_doc->first_token;
@@ -209,7 +227,6 @@ sub signature {
 
   my $args = {};
   my $params = [];
-
 
   my $param = $self->param;
 
@@ -319,6 +336,7 @@ sub param {
   ) or ($err_ctx == $self->ppi and return)
     or $self->error($err_ctx);
 
+  $self->_param_default($param);
   $self->_param_constraint_or_traits($param);
 
   $param = $self->create_param($param);
@@ -461,7 +479,30 @@ sub _param_typed {
 
   return $param;
 }
-  
+ 
+sub _param_default {
+  my ($self, $param) = @_;
+
+  return unless $self->ppi->content eq '=';
+
+  $self->consume_token;
+
+  $param->{default_value} =
+    $self->_consume_if_isa(qw/
+      PPI::Token::QuoteLike
+      PPI::Token::Number
+      PPI::Token::Quote
+      PPI::Token::Symbol
+      PPI::Token::Magic
+      PPI::Token::ArrayIndex
+    /) ||
+    $self->bracketed('[') ||
+    $self->bracketed('{') 
+  or $self->error($self->ppi);
+    
+  $param->{default_value} = $param->{default_value}->content;
+}
+
 
 sub _param_variable {
   my ($self, $param) = @_;
@@ -623,15 +664,23 @@ sub bracketed {
   $ppi->finish or $self->error($ppi, 
     "Runaway '" . $ppi->braces . "' in " . $self->_parsing_area(1), 1);
 
-  my $list = PPI::Structure::Constructor->new($ppi->start);
 
-  my $ret = $code->($self, $list, @args);
+  my $ret;
+  if ($code) {
+    my $list = PPI::Structure::Constructor->new($ppi->start->clone);
+    $ret = $code->($self, $list, @args);
 
-  $self->error($self->ppi)
-    if $self->ppi != $ppi->finish;
+    $self->error($self->ppi)
+      if $self->ppi != $ppi->finish;
 
-  # Hmm we seem to have to call a private method. sucky
-  $self->_add_ws($list)->_set_finish($self->consume_token->clone);
+    # Hmm we seem to have to call a private method. sucky
+    $self->_add_ws($list)->_set_finish($self->consume_token->clone);
+  } else {
+    # Just clone the entire [] or {}
+    $ret = $ppi->clone;
+    $self->_set_ppi($ppi->finish);
+    $self->consume_token;
+  }
 
   return $ret;
 }
@@ -658,13 +707,16 @@ sub error {
   unless ($msg) {
     $msg = "Error parsing " . $self->_parsing_area(2);
   }
+  $msg = $msg . " near '$token'" . 
+        ($no_in ? ""
+                : " in '" . $token->statement . "'" 
+        );
 
-  Carp::croak(
-    $msg . " near '$token'" . 
-    ($no_in ? ""
-           : " in '" . $token->statement . "'" 
-    )
-  );
+  if ($DEBUG) {
+    Carp::confess($msg);
+  } else {
+    Carp::croak($msg);
+  }
 }
 
 sub assert_token {
@@ -729,6 +781,16 @@ sub _ident {
   return $self->consume_token
     if $ppi->class eq 'PPI::Token::Word';
   return undef;
+}
+
+sub _consume_if_isa {
+  my ($self, @classes) = @_;
+
+  for (@classes) {
+    return $self->consume_token
+      if $self->ppi->isa($_);
+  }
+
 }
 
 sub consume_token {
