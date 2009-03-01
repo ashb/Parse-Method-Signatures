@@ -163,7 +163,7 @@ sub _replace_magic {
   my ($self, $doc) = @_;
 
   foreach my $node ( @{ $doc->find('Token::Magic') || [] } ) {
-    my ($op) = $node->content =~ /^\$([,?:!])$/ or next;
+    my ($op) = $node->content =~ /^\$([,?:!)])$/ or next;
 
     $node->insert_after(new PPI::Token::Operator($op));
     $node->insert_after(new PPI::Token::Cast('$'));
@@ -413,7 +413,14 @@ sub _param_traits {
   return unless $self->ppi->isa('PPI::Token::LexSymbol')
              && $self->ppi->lex eq 'TRAIT';
 
-  $self->consume_token;
+  my $op = $self->consume_token->content;
+
+  $self->error($self->ppi, "Error parsing parameter trait")
+    unless $self->ppi->isa('PPI::Token::Word');
+
+  $param->{param_traits} ||= [];
+
+  push @{$param->{param_traits}}, [$op, $self->consume_token->content];
   return $param;
 }
 
@@ -456,11 +463,17 @@ sub _param_named {
   return unless
     $self->ppi->content eq ':' &&
     $self->ppi->next_token->isa('PPI::Token::Symbol');
+
   $param->{required} = 0;
   $param->{named} = 1;
   $self->consume_token;
  
-  return $self->_param_variable($param);
+  $param = $self->_param_variable($param);
+
+  confess "Arrays or hashes cannot be named"
+    if $param->{sigil} ne '$';
+
+  return $param;
 }
 
 sub _param_typed {
@@ -630,7 +643,8 @@ sub _tc_union {
   
   return $tc unless $self->ppi->content eq '|';
 
-  my $union = PPI::Statement::Expression::Union->new($tc);
+  my $union = PPI::Statement::Expression::Union->new;
+  $union->add_element($tc);
   while ( $self->ppi->content eq '|' ) {
    
     $self->consume_token;

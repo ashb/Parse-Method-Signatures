@@ -79,14 +79,15 @@ my @sigs = (
                                 'complex parameterized type'],
     ['($foo is coerce)',        'positional with traits (is)'],
     ['($foo does coerce)',      'positional with traits (does)'],
-    ['(:$foo is coerce)',       'named  with traits (is)'],
+    ['(:$foo is coerce)',       'named with traits (is)'],
     ['(:$foo does coerce)',     'named with traits (does)'],
     ['($foo is copy is ro does coerce)',
                                 'multiple traits'],
 
     ['($x = "foo")',            'string default'],
     ['($x = q"fo)o")',          'string default'],
-    ['($x = [ ]")',             'simple array default', 'TODO'],
+    ['($x = [ ])',              'simple array default'],
+    ['($x = { })',              'simple hash default'],
 );
 
 my @alternative = (
@@ -96,8 +97,8 @@ my @alternative = (
     ['($self: $moo)',           '($self: $moo)',           'invocant and positional'],
     ['(Animal | Human $affe)',  '(Animal|Human $affe)',    'type constraint alternative with whitespace'],
     ['(HashRef[foo => Str] $foo)',
-                                '(HashRef[foo,Str] $foo)', 'Hash with required key'],
-#    ['(HashRef[0 => Str] $foo)','(HashRef[0,Str] $foo)',   'Hash with pathological defaults'],
+                                '(HashRef["foo",Str] $foo)', 'Hash with required key', "TODO"],
+    ['(HashRef[0 => Str] $foo)','(HashRef[0,Str] $foo)',   'Hash with pathological defaults', "TODO"],
 );
 
 my @invalid = (
@@ -120,7 +121,7 @@ my @invalid = (
     ['(:{%x})',                 'named hash ref unpacking without label'],
     ['({$x, $y})',              'unpacking hash ref to something not named'],
     ['($foo where { 1, $bar)',  'unbalanced { in conditional'],
-    ['($foo = `pwd`)',          'invalid quote op'],
+    ['($foo = `pwd`)',          'invalid quote op', "Do we want to allow this"],
     ['($foo = "pwd\')',         'unbalanced quotes'],
     ['(:$x:)',                  'named invocant is invalid'],
     ['($x! = "foo":)',          'default value for invocant is invalid'],
@@ -145,10 +146,13 @@ test_sigs(sub {
 }, @sigs);
 
 for my $row (@alternative) {
-    my ($in, $out, $msg) = @{ $row };
+    my ($in, $out, $msg, $todo) = @{ $row };
+  TODO: {
+    todo_skip $todo, 1 if $todo;
     lives_and {
         is(Parse::Method::Signatures->signature($in)->to_string, $out, $msg)
     } $msg;
+  }
 }
 
 test_sigs(sub {
