@@ -1,5 +1,10 @@
 Changelog for Parse::Method::Signatures
 
+1.003000 - 
+  - Port to using PPI to do the parsing
+  - Produces nicer error messages
+  - Refactor internals to be much more readable (thanks to Piers Cawley)
+
 1.002000 - 2009/02/21
   - Will now build a Moose TC object for types of params
   - Add a few more docs

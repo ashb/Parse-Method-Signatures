@@ -132,6 +132,11 @@ test_param(
   }
 );
 
+throws_ok {
+  Parse::Method::Signatures->new('($x = 0xfG)')->signature(),
+} qr/^'\)' expected whilst parsing signature near 'G' in '\$x = 0xfG' at/,
+  q/')' expected whilst paring signautre near 'G' in '$x = 0xfG' at/;
+
 test_param(
   $param->params->[0],
   { required => 0,

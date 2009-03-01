@@ -69,6 +69,7 @@ my @sigs = (
     ['([$y, $z, @rest], :$x)',  'array ref unpacking combined with named'],
     ['(:foo([$x, $y, @rest]))', 'named array ref unpacking'],
     ['({%x})',                  'hash ref unpacking into hash'],
+    ['(:foo({%x}))',            'labeld hash ref unpacking into hash'],
     ['({:$x, :$y, %rest})',     'hash ref unpacking into scalars and hash'],
     ['($x, {:$y, :$z, %rest})', 'hash ref unpacking combined with normal positionals'],
     ['({:$y, :$z, %rest}, $x)', 'hash ref unpacking combined with normal positionals'],
@@ -88,6 +89,8 @@ my @sigs = (
     ['($x = q"fo)o")',          'string default'],
     ['($x = [ ])',              'simple array default'],
     ['($x = { })',              'simple hash default'],
+    ['($x = 0xf)',              'hex default'],
+    ['($x = 0xfF)',             'hex default'],
 );
 
 my @alternative = (
@@ -127,6 +130,13 @@ my @invalid = (
     ['($foo is bar moo is bo)', 'invalid traits'],
     ['(Foo:: Bar $foo)',        'invalid spaces in TC'],
     ['(Foo ::Bar $foo)',        'invalid spaces in TC'],
+    ['(@y: $foo)',              'invalid invocant'],
+    ['(@y,)',                   'trailing comma'],
+    ['($x where [ foo ])',      'no block after where'],
+    ['($x does $x)',            'invalid param trait'],
+    ['(:foo(Str $x))',          'invalid label contents'],
+    # This should probably be valid
+    ['($x = $a[0])',            'invalid label contents'],
 );
 
 plan tests => scalar @sigs * 3 + scalar @alternative + scalar @invalid;
