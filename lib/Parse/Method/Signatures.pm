@@ -19,7 +19,6 @@ our $DEBUG = $ENV{PMS_DEBUG} || 0;
 
 # Setup what we need for specific PPI subclasses
 @PPI::Token::EOF::ISA = 'PPI::Token';
-@PPI::Token::StringifiedWord::ISA = 'PPI::Token::Word'; # Used for LHS of fat comma
 
 class_type "PPI::Document";
 class_type "PPI::Element";
@@ -467,10 +466,11 @@ sub _param_named {
   $param->{required} = 0;
   $param->{named} = 1;
   $self->consume_token;
- 
+
+  my $err_ctx = $self->ppi;
   $param = $self->_param_variable($param);
 
-  confess "Arrays or hashes cannot be named"
+  $self->error($err_ctx, "Arrays or hashes cannot be named")
     if $param->{sigil} ne '$';
 
   return $param;
@@ -607,20 +607,18 @@ sub tc {
 sub _tc_params {
   my ($self, $list, $tc) = @_;
 
-  my $new = PPI::Statement::Expression->new($tc->clone);
-  $new->add_element($list);
+  my $new = PPI::Statement::Expression::TCParams->new($tc->clone);
 
   return $new if $self->ppi->content eq ']';
 
-  $self->_add_with_ws($list, $self->_tc_param);
+  $new->add_element($self->_tc_param);
 
   while ($self->ppi->content =~ /^,|=>$/ ) {
 
     my $op = $self->consume_token;
-    $self->_stringify_last($list) if $op->content eq '=>';
-    $self->_add_with_ws($list, $op, 1);
+    $self->_stringify_last($new) if $op->content eq '=>';
 
-    $list->add_element($self->tc(1));
+    $new->add_element($self->tc(1));
   }
 
   return $new;
@@ -631,7 +629,7 @@ sub _tc_param {
   my ($self) = @_;
 
   (my $class = $self->ppi->class) =~ s/^PPI:://;
-  return $self->consume_token
+  return $self->consume_token->clone
       if $class eq 'Token::Number' ||
          $class =~ /^Token::Quote::(?:Single|Double|Literal|Interpolate)/;
 
@@ -643,7 +641,7 @@ sub _tc_union {
   
   return $tc unless $self->ppi->content eq '|';
 
-  my $union = PPI::Statement::Expression::Union->new;
+  my $union = PPI::Statement::Expression::TCUnion->new;
   $union->add_element($tc);
   while ( $self->ppi->content eq '|' ) {
    
@@ -691,7 +689,7 @@ sub bracketed {
       if $self->ppi != $ppi->finish;
 
     # Hmm we seem to have to call a private method. sucky
-    $self->_add_ws($list)->_set_finish($self->consume_token->clone);
+    $list->_set_finish($self->consume_token->clone);
   } else {
     # Just clone the entire [] or {}
     $ret = $ppi->clone;
@@ -721,9 +719,10 @@ sub _parsing_area {
 sub error {
   my ($self, $token, $msg, $no_in) = @_;
 
-  unless ($msg) {
-    $msg = "Error parsing " . $self->_parsing_area(2);
-  }
+  $msg = "Error parsing " . $self->_parsing_area(2)
+    unless ($msg);
+
+
   $msg = $msg . " near '$token'" . 
         ($no_in ? ""
                 : " in '" . $token->statement . "'" 
@@ -768,20 +767,6 @@ sub _add_with_ws {
 
   $collection->add_element($_->clone) for @elements;
 
-  return $collection;
-}
-
-# Add ws prior to $self->ppi to $collection
-sub _add_ws {
-  my ($self, $collection) = @_;
-
-  my @toks;
-  my $t = $self->ppi->previous_token;
-  while ($t && !$t->significant) {
-    unshift @toks, $t;
-    $t = $t->previous_token;
-  }
-  $collection->add_element($_->clone) for @toks;
   return $collection;
 }
 
@@ -834,14 +819,48 @@ __PACKAGE__->meta->make_immutable;
 
 # Extra PPI classes to represent what we want.
 { package 
-    PPI::Statement::Expression::Union;
+    PPI::Statement::Expression::TCUnion;
   use base 'PPI::Statement::Expression';
 
   sub content {
-    my ($self) = @_;
-
-    join('|', $self->children );
+    join('|', $_[0]->children );
   }
+}
+
+{ package 
+    PPI::Statement::Expression::TCParams;
+    
+  use base 'PPI::Statement::Expression';
+  use Moose;
+
+  # $self->children stores everything so PPI cna track parents
+  # params just contains the keywords (not commas) inside the []
+  has type => ( is => 'ro');
+  has params => ( 
+    is => 'ro',
+    default => sub { [] },
+  );
+
+  sub new {
+    my ($class, $type) = @_;
+
+    return $class->meta->new_object(
+      __INSTANCE__ => $class->SUPER::new($type),
+      type => $type
+    );
+  };
+
+  override add_element => sub {
+    my ($self, $ele) = @_;
+    super();
+    push @{$self->params}, $ele;
+  };
+
+  sub content { 
+    $_[0]->type->content . '[' . join(',', @{$_[0]->params}) . ']'
+  }
+
+  no Moose;
 }
 
 { package 
@@ -852,6 +871,18 @@ __PACKAGE__->meta->make_immutable;
     my ($self) = @_;
     return $self->{lex}
   }
+}
+
+# Used for LHS of fat comma
+{ package
+    PPI::Token::StringifiedWord;
+  use base 'PPI::Token::Word'; 
+
+  use Moose;
+  override content => sub {
+    return '"' . super() . '"';
+  };
+  no Moose;
 }
 
 1;

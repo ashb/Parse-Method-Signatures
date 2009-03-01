@@ -97,8 +97,7 @@ my @alternative = (
     ['($self: $moo)',           '($self: $moo)',           'invocant and positional'],
     ['(Animal | Human $affe)',  '(Animal|Human $affe)',    'type constraint alternative with whitespace'],
     ['(HashRef[foo => Str] $foo)',
-                                '(HashRef["foo",Str] $foo)', 'Hash with required key', "TODO"],
-    ['(HashRef[0 => Str] $foo)','(HashRef[0,Str] $foo)',   'Hash with pathological defaults', "TODO"],
+                                '(HashRef["foo",Str] $foo)', 'Hash with required key'],
 );
 
 my @invalid = (
@@ -146,13 +145,10 @@ test_sigs(sub {
 }, @sigs);
 
 for my $row (@alternative) {
-    my ($in, $out, $msg, $todo) = @{ $row };
-  TODO: {
-    todo_skip $todo, 1 if $todo;
+    my ($in, $out, $msg) = @{ $row };
     lives_and {
         is(Parse::Method::Signatures->signature($in)->to_string, $out, $msg)
     } $msg;
-  }
 }
 
 test_sigs(sub {

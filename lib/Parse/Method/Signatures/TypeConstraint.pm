@@ -6,7 +6,6 @@ use Parse::Method::Signatures::Types qw/TypeConstraint/;
 
 use namespace::clean -except => 'meta';
 
-# I'm very lazy - lets just get this working/storing things for now
 has ppi => (
   is       => 'ro',
   isa      => 'PPI::Element',
@@ -29,34 +28,41 @@ has tc_callback => (
     default  => sub { \&find_registered_constraint },
 );
 
+sub find_registered_constraint {
+    my ($self, $name) = @_;
+    my $registry = Moose::Util::TypeConstraints->get_type_constraint_registry;
+    return $registry->find_type_constraint($name) || $name;
+}
+
+
 sub _build_tc {
     my ($self) = @_;
-    return $self->_walk_data($self->data);
+    return $self->_walk_data($self->ppi);
 }
 
 sub _walk_data {
     my ($self, $data) = @_;
 
-    my $res = $self->_leaf($data)
-           || $self->_union_node($data)
+    my $res = $self->_union_node($data)
            || $self->_params_node($data)
            || $self->_str_node($data)
+           || $self->_leaf($data)
       or confess 'failed to visit tc';
     return $res->();
 }
 
 sub _leaf {
     my ($self, $data) = @_;
-    return if ref($data);
+    #return if ref($data);
 
-    sub { $self->_invoke_callback($data) };
+    sub { $self->_invoke_callback($data->content) };
 }
 
 sub _union_node {
     my ($self, $data) = @_;
-    return unless exists $data->{-or};
+    return unless $data->isa('PPI::Statement::Expression::TCUnion');
 
-    my @types = map { $self->_walk_data($_) } @{ $data->{-or} };
+    my @types = map { $self->_walk_data($_) } $data->children;
     sub {
       scalar @types == 1 ? @types
         : Moose::Meta::TypeConstraint::Union->new(type_constraints => \@types)
@@ -65,30 +71,26 @@ sub _union_node {
 
 sub _params_node {
     my ($self, $data) = @_;
-    return unless exists $data->{-type};
+    return unless $data->isa('PPI::Statement::Expression::TCParams');
 
-    my @params = map { $self->_walk_data($_) } @{ $data->{-params} };
-    my $type = $self->_invoke_callback($data->{-type});
+    my @params = map { $self->_walk_data($_) } $data->first_element->children;
+    my $type = $self->_invoke_callback($data->type);
     sub { $type->parameterize(@params) }
 }
 
 
 sub _str_node {
     my ($self, $data) = @_;
-    return unless exists $data->{-str};
+    return unless $data->isa('PPI::Token::StringifiedWord')
+               || $data->isa('PPI::Token::Number')
+               || $data->isa('PPI::Token::Quote');
 
-    sub { $data->{-str} };
+    sub { $data->content };
 }
 
 sub _invoke_callback {
     my $self = shift;
     $self->tc_callback->($self, @_);
-}
-
-sub find_registered_constraint {
-    my ($self, $name) = @_;
-    my $registry = Moose::Util::TypeConstraints->get_type_constraint_registry;
-    return $registry->find_type_constraint($name) || $name;
 }
 
 __PACKAGE__->meta->make_immutable;

@@ -28,7 +28,7 @@ BEGIN {
     my ($param) = $sig->positional_params;
     isa_ok($param, Param);
     ok($param->has_type_constraints);
-    is($param->type_constraints->data, 'Str');
+    #is($param->type_constraints->data, 'Str');
     is($param->variable_name, '$name');
     ok($param->required);
     ok(!$param->has_constraints);
@@ -39,7 +39,6 @@ BEGIN {
     isa_ok($tc, 'Moose::Meta::TypeConstraint');
     is($tc->name, 'Str');
 }
-
 {
     my $sig = Parse::Method::Signatures->signature('(Str :$who, Int :$age where { $_ > 0 })');
 
@@ -54,39 +53,27 @@ BEGIN {
     }
 
     my ($who, $age) = @params;
-    is($who->type_constraints->data, 'Str');
+    #is($who->type_constraints->data, 'Str');
     is($who->variable_name, '$who');
     ok(!$who->required);
     ok(!$who->has_constraints);
+    my $tc = $who->meta_type_constraint;
+    isa_ok($tc, 'Moose::Meta::TypeConstraint');
+    is($tc->name, 'Str');
 
-    is($age->type_constraints->data, 'Int');
+    #is($age->type_constraints->data, 'Int');
     is($age->variable_name, '$age');
     ok(!$age->required);
     ok($age->has_constraints);
     is_deeply([$age->constraints], ['{ $_ > 0 }']);
+    $tc = $age->meta_type_constraint;
+    isa_ok($tc, 'Moose::Meta::TypeConstraint');
+    is($tc->name, 'Int');
 }
 
 {
     my $type = 'HashRef[ArrayRef[Moo]|Str]|Num';
     my $param = Parse::Method::Signatures->param("${type} \$foo");
-    eq_or_diff($param->type_constraints->data,
-      { 
-        -or => [
-          { -type => 'HashRef',
-            -params => [
-              { -or => [
-                  { -type => 'ArrayRef',
-                    -params => [ qw/Moo/ ]
-                  },
-                  'Str',
-                ]
-              }
-            ]
-          },
-          'Num'
-        ]
-      }
-    );
 
     my $tc = $param->meta_type_constraint;
     isa_ok($tc, 'Moose::Meta::TypeConstraint');
@@ -101,14 +88,6 @@ BEGIN {
             return Dict if $name eq 'Dict';
             return $tc->find_registered_constraint($name);
         },
-    );
-    eq_or_diff($param->type_constraints->data,
-      { -type => 'Dict',
-        -params => [
-          { -str => 'foo' },
-          'Int',
-        ]
-      }
     );
     is($param->meta_type_constraint->name, 'MooseX::Types::Structured::Dict[foo,Int]');
 }

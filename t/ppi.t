@@ -23,9 +23,9 @@ throws_ok {
   q/Error parsing type constraint near ':' in 'Bar:' at/;
 
 is( Parse::Method::Signatures->new("ArrayRef")->tc(), "ArrayRef");
-is( Parse::Method::Signatures->new("ArrayRef[Str => Str]")->tc(), "ArrayRef[Str => Str]");
+is( Parse::Method::Signatures->new("ArrayRef[Str => Str]")->tc(), 'ArrayRef["Str",Str]');
 is( Parse::Method::Signatures->new("ArrayRef[Str]")->tc(), "ArrayRef[Str]");
-is( Parse::Method::Signatures->new("ArrayRef[0 => Foo]")->tc(), "ArrayRef[0 => Foo]");
+is( Parse::Method::Signatures->new("ArrayRef[0 => Foo]")->tc(), "ArrayRef[0,Foo]");
 is( Parse::Method::Signatures->new("ArrayRef[qq/0/]")->tc(), "ArrayRef[qq/0/]");
 is( Parse::Method::Signatures->new("Foo|Bar")->tc(), "Foo|Bar");
 
@@ -109,14 +109,19 @@ throws_ok {
   q/Cannot have optional parameters in an unpacked-array near '@y' in '$x, @y?' at /;
 
 throws_ok {
+  Parse::Method::Signatures->new(':foo( [$x, :$y])')->param(),
+} qr/^Cannot have named parameters in an unpacked-array near ':' in '\$x, :\$y' at /,
+  q/Cannot have named parameters in an unpacked-array near ':' in '$x, :$y' at /;
+
+throws_ok {
   Parse::Method::Signatures->new(':foo( [$x, :@y])')->param(),
-} qr/^Cannot have named parameters in an unpacked-array near ':' in '\$x, :\@y' at /,
-  q/Cannot have named parameters in an unpacked-array near ':' in '$x, :@y' at /;
+} qr/^Arrays or hashes cannot be named near '\@y' in '\$x, :\@y' at /,
+  q/Arrays or hashes cannot be named near '@y' in '$x, :@y' at /;
 
 throws_ok {
   Parse::Method::Signatures->new(':foo( {$x, :@y])')->param(),
 } qr/^Runaway '{}' in unpacked parameter near '{\$x, :\@y' at /,
-  q/Runaway '{}' in unpacked parameter near '{\$x, :\@y' at /;
+  q/Runaway '{}' in unpacked parameter near '{$x, :@y' at /;
 
 test_param(
   my $param = Parse::Method::Signatures->new(':foo( {:$x, @y})')->param(),
