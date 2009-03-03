@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 38;
+use Test::More tests => 43;
 use Test::Differences;
 use Test::Moose;
 use MooseX::Types::Structured qw/Dict/;
@@ -69,6 +69,20 @@ BEGIN {
     $tc = $age->meta_type_constraint;
     isa_ok($tc, 'Moose::Meta::TypeConstraint');
     is($tc->name, 'Int');
+}
+
+{
+    my $sig = Parse::Method::Signatures->signature('($, $foo, $)');
+
+    ok($sig->has_positional_params);
+    ok(!$sig->has_named_params);
+    is(scalar @{ $sig->positional_params }, 3);
+
+    TODO: {
+        local $TODO = "Placeholder role isn't applied properly yet";
+        does_ok($sig->positional_params->[0], Placeholder);
+        does_ok($sig->positional_params->[2], Placeholder);
+    }
 }
 
 {
