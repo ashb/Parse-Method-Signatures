@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 36;
+use Test::More tests => 41;
 use Test::Differences;
 use Test::Moose;
 use MooseX::Types::Structured qw/Dict/;
@@ -64,6 +64,20 @@ BEGIN {
     ok(!$age->required);
     ok($age->has_constraints);
     is_deeply([$age->constraints], ['{ $_ > 0 }']);
+}
+
+{
+    my $sig = Parse::Method::Signatures->signature('($, $foo, $)');
+
+    ok($sig->has_positional_params);
+    ok(!$sig->has_named_params);
+    is(scalar @{ $sig->positional_params }, 3);
+
+    TODO: {
+        local $TODO = "Placeholder role isn't applied properly yet";
+        does_ok($sig->positional_params->[0], Placeholder);
+        does_ok($sig->positional_params->[2], Placeholder);
+    }
 }
 
 {
