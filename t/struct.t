@@ -78,11 +78,8 @@ BEGIN {
     ok(!$sig->has_named_params);
     is(scalar @{ $sig->positional_params }, 3);
 
-    TODO: {
-        local $TODO = "Placeholder role isn't applied properly yet";
-        does_ok($sig->positional_params->[0], Placeholder);
-        does_ok($sig->positional_params->[2], Placeholder);
-    }
+    does_ok($sig->positional_params->[0], Placeholder);
+    does_ok($sig->positional_params->[2], Placeholder);
 }
 
 {

@@ -531,8 +531,7 @@ sub _param_variable {
     $param->{sigil} = $ppi->raw_type;
     $param->{variable_name} = $self->consume_token->content;
   } else {
-    $param->{sigil} = $param->{variable_name}
-                    = $self->consume_token->content;
+    $param->{sigil} = $self->consume_token->content;
   }
 
   return $param;
