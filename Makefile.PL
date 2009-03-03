@@ -1,4 +1,4 @@
-use inc::Module::Install 0.77;
+use inc::Module::Install 0.79;
 
 use strict;
 use warnings;
@@ -33,5 +33,5 @@ resources(
     'homepage'   => 'http://github.com/ashb/parse-method-signatures/tree/master',
 );
 
-auto_install;
+#auto_install;
 WriteAll;

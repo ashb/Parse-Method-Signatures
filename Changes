@@ -1,6 +1,6 @@
 Changelog for Parse::Method::Signatures
 
-1.003000 - 
+1.003000 - 2009/03/03
   - Port to using PPI to do the parsing
   - Produces nicer error messages
   - Refactor internals to be much more readable (thanks to Piers Cawley)
