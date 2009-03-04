@@ -11,7 +11,7 @@ use Parse::Method::Signatures::Types qw/PositionalParam NamedParam UnpackedParam
 use Carp qw/croak/;
 
 use namespace::clean -except => 'meta';
-our $VERSION = '1.003000';
+our $VERSION = '1.003001';
 our $ERROR_LEVEL = 0;
 our %LEXTABLE;
 our $DEBUG = $ENV{PMS_DEBUG} || 0;

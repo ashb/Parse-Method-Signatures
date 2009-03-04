@@ -165,10 +165,9 @@ sub test_param {
   my ($param, $wanted, $msg) = @_;
   local $Test::Builder::Level = 2;
 
-  use Data::Dump qw/pp/;
   if (my $isa = delete $wanted->{__isa}) {
     isa_ok($param, $isa, $msg)
-      or diag(pp $param->meta->linearized_isa);
+      or diag("@{[$param->meta->linearized_isa]}");
   }
 
   for ( @{ delete $wanted->{__does} || [] }) {

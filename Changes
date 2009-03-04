@@ -1,5 +1,8 @@
 Changelog for Parse::Method::Signatures
 
+1.003001 - 2009/03/04
+  - Remove unmarked test dependency on Data::Dump
+
 1.003000 - 2009/03/03
   - Port to using PPI to do the parsing
   - Produces nicer error messages
