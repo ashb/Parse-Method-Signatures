@@ -1,7 +1,7 @@
 # Avoid version control files.
 \B\.svn\b
 \B\.svk\b
-\B\.git\b
+^\.git\b
 \B\.DS_store\b
 
 # Avoid Makemaker generated and utility files.
@@ -24,12 +24,8 @@
 # Don't ship the last dist we built :)
 \.tar\.gz$
 
-# Ignore test_results and other dev files
-^var/test_results
-^[^/]+.(?:pdf|sql)
-
 # Ignore dists
-^YourPreferences-\d
+^Parse-Method-Signatures-\d
 
 # Ignore tmp files
 ~$
