@@ -1,5 +1,8 @@
 Changelog for Parse::Method::Signatures
 
+1.003002 - 2009/03/04
+  - Now *really* remove deps on Data::Dump. Not my day w.r.t. dists
+
 1.003001 - 2009/03/04
   - Remove unmarked test dependency on Data::Dump
 
