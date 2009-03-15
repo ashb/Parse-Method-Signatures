@@ -1,5 +1,7 @@
 Changelog for Parse::Method::Signatures
 
+  - Re-introduce remaining_input since TryCatch depends upon it
+
 1.003002 - 2009/03/04
   - Now *really* remove deps on Data::Dump. Not my day w.r.t. dists
 

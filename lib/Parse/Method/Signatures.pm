@@ -283,7 +283,6 @@ sub signature {
 
   my $sig = $self->signature_class->new($args);
 
-  #return wantarray ? ($sig, $self->remaining_input) : $sig;
   return $sig;
 }
 
@@ -342,7 +341,7 @@ sub param {
   return !$class_meth
       ? $param
       : wantarray
-      ? ($param, "")
+      ? ($param, $self->remaining_input)
       : $param;
 }
 
@@ -741,31 +740,6 @@ sub assert_token {
   return $self->consume_token;
 }
 
-# Add $token to $collection, preserving WS/comment nodes prior to $token
-sub _add_with_ws {
-  my ($self, $collection, $token, $trailing) = @_;
-
-  my @elements = ($token);
-
-  my $t = $token->previous_token;
-
-  while ($t && !$t->significant) {
-    unshift @elements, $t;
-    $t = $t->previous_token;
-  }
-
-  if ($trailing) {
-    $t = $token->next_token;
-    while ($t && !$t->significant) {
-      push @elements, $t;
-      $t = $t->next_token;
-    }
-  }
-
-  $collection->add_element($_->clone) for @elements;
-
-  return $collection;
-}
 
 %LEXTABLE = (
   where => 'WHERE',
@@ -809,6 +783,17 @@ sub consume_token {
   }
   $self->_set_ppi( $ppi );
   return $ret;
+}
+
+sub remaining_input {
+  my $tok = $_[0]->ppi;
+  my $buff;
+
+  while ( !$tok->isa('PPI::Token::EOF') ) {
+    $buff .= $tok->content;
+    $tok = $tok->next_token;
+  }
+  return $buff;
 }
 
 __PACKAGE__->meta->make_immutable;
