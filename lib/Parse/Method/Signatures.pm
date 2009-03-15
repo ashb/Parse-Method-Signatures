@@ -955,7 +955,7 @@ L<Moose::Meta::TypeConstraint> object.
 
 =head2 type_constraint_callback
 
-B<Type:> Code Ref
+B<Type:> CodeRef
 
 Passed to the constructor of L</type_constraint_class>. Default implementation
 of this callback asks Moose for a type constrain matching the name passed in.
