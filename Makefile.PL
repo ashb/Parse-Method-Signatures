@@ -35,6 +35,5 @@ resources(
 
 jsonmeta;
 auto_provides;
-warn is_admin;
 #auto_install;
 WriteAll;

@@ -1,7 +1,7 @@
 package Parse::Method::Signatures;
 
 use Moose;
-use MooseX::Types::Moose qw/ArrayRef HashRef ScalarRef CodeRef Int Str/;
+use MooseX::Types::Moose qw/ArrayRef HashRef ScalarRef CodeRef Int Str ClassName/;
 
 use PPI;
 use Moose::Util::TypeConstraints;
@@ -55,6 +55,12 @@ has 'type_constraint_callback' => (
     is        => 'ro',
     isa       => CodeRef,
     predicate => 'has_type_constraint_callback',
+);
+
+has 'in_package' => (
+    is        => 'rw',
+    isa       => ClassName,
+    predicate => 'has_search_packge'
 );
 
 has 'ppi_doc' => (
@@ -484,6 +490,8 @@ sub _param_typed {
     ppi  => $tc,
     $self->has_type_constraint_callback
       ? (tc_callback => $self->type_constraint_callback)
+      : $self->has_search_packge
+      ? ( search_package => $self->in_package )
       : ()
   );
   $param->{type_constraints} = $tc;
@@ -953,6 +961,19 @@ B<Type:> Str (loaded on demand class name)
 Class that is used to turn the parsed type constraint into an actual
 L<Moose::Meta::TypeConstraint> object.
 
+=head2 in_package
+
+B<Type:> ClassName
+
+Let this module know which package it is parsing signatures form. This is
+entirely optional, and the only effect is has is on parsing type constraints.
+
+If this attribute is set (and C<type_constraint_callback> is not) it is passed
+to L</type_constraint_class> which can use it to introspect the package
+(commmonly for L<MooseX::Types> exported types). See
+L<Parse::Method::Signature::TypeConstraints/find_registered_constraint> for
+more details.
+
 =head2 type_constraint_callback
 
 B<Type:> CodeRef
@@ -969,6 +990,9 @@ L<MooseX::Types> then you will want a callback similar to this:
    $code ? eval { $code->() } 
          : $pms_tc->find_registered_constraint($name);
  }
+
+Note that the above example is better provided by providing the L</in_package>
+attribute.
 
 =head1 CAVEATS
 

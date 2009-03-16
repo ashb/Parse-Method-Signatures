@@ -1,8 +1,8 @@
 package Parse::Method::Signatures::TypeConstraint;
 
 use Moose;
-use MooseX::Types::Util;
-use MooseX::Types::Moose qw/Str HashRef CodeRef/;
+use MooseX::Types::Util qw/has_available_type_export/;
+use MooseX::Types::Moose qw/Str HashRef CodeRef ClassName/;
 use Parse::Method::Signatures::Types qw/TypeConstraint/;
 
 use namespace::clean -except => 'meta';
@@ -23,7 +23,7 @@ has tc => (
     builder => '_build_tc',
 );
 
-has search_in_package => (
+has search_package => (
     is => 'ro',
     isa => ClassName,
     predicate => 'has_search_package'
@@ -39,8 +39,9 @@ sub find_registered_constraint {
     my ($self, $name) = @_;
 
     my $type;
-    if ($self->has_search_package)
-      $type = has_available_type_export($self->search_in_package, $name);
+    if ($self->has_search_package) {
+      $type = has_available_type_export($self->search_package, $name);
+    }
 
     my $registry = Moose::Util::TypeConstraints->get_type_constraint_registry;
     return $type || $registry->find_type_constraint($name) || $name;
@@ -151,7 +152,7 @@ Callback used to turn type names into type objects. See
 L<Parse::Method::Signatures/type_constraint_callback> for more details and an
 example.
 
-=head2 search_in_package
+=head2 search_package
 
 =over
 
@@ -166,7 +167,7 @@ in this package.
 
 =head2 find_registered_constraint
 
-Will search for an imported L<MooseX::Types> in L</search_in_package> (if
+Will search for an imported L<MooseX::Types> in L</search_package> (if
 provided). Failing that it will ask the L<Moose::Meta::TypeConstraint::Registry>
 for a type with the given name.
 
