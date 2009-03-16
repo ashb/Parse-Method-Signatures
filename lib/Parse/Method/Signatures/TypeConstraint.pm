@@ -23,10 +23,10 @@ has tc => (
     builder => '_build_tc',
 );
 
-has search_package => (
+has from_namespace => (
     is => 'ro',
     isa => ClassName,
-    predicate => 'has_search_package'
+    predicate => 'has_from_namespace'
 );
 
 has tc_callback => (
@@ -39,8 +39,8 @@ sub find_registered_constraint {
     my ($self, $name) = @_;
 
     my $type;
-    if ($self->has_search_package) {
-      $type = has_available_type_export($self->search_package, $name);
+    if ($self->has_from_namespace) {
+      $type = has_available_type_export($self->from_namespace, $name);
     }
 
     my $registry = Moose::Util::TypeConstraints->get_type_constraint_registry;
@@ -152,7 +152,7 @@ Callback used to turn type names into type objects. See
 L<Parse::Method::Signatures/type_constraint_callback> for more details and an
 example.
 
-=head2 search_package
+=head2 from_namespace
 
 =over
 
@@ -167,7 +167,7 @@ in this package.
 
 =head2 find_registered_constraint
 
-Will search for an imported L<MooseX::Types> in L</search_package> (if
+Will search for an imported L<MooseX::Types> in L</from_namespace> (if
 provided). Failing that it will ask the L<Moose::Meta::TypeConstraint::Registry>
 for a type with the given name.
 

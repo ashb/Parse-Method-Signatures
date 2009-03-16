@@ -1,5 +1,6 @@
 Changelog for Parse::Method::Signatures
 
+1.003003 - 2009/03/16
   - Re-introduce remaining_input since TryCatch depends upon it
   - Add more and update docs
   - Add 'in_package' option to streamline use with MooseX::Types

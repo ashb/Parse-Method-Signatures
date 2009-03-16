@@ -1,16 +1,21 @@
 package Parse::Method::Signatures;
 
 use Moose;
-use MooseX::Types::Moose qw/ArrayRef HashRef ScalarRef CodeRef Int Str ClassName/;
+use MooseX::Types::Moose qw/
+  ArrayRef HashRef ScalarRef CodeRef Int Str ClassName
+/;
 
 use PPI;
 use Moose::Util::TypeConstraints;
 use Parse::Method::Signatures::ParamCollection;
-use Parse::Method::Signatures::Types qw/PositionalParam NamedParam UnpackedParam/;
+use Parse::Method::Signatures::Types qw/
+  PositionalParam NamedParam UnpackedParam
+/;
+
 use Carp qw/croak/;
 
 use namespace::clean -except => 'meta';
-our $VERSION = '1.003002';
+our $VERSION = '1.003003';
 our $ERROR_LEVEL = 0;
 our %LEXTABLE;
 our $DEBUG = $ENV{PMS_DEBUG} || 0;
@@ -57,10 +62,10 @@ has 'type_constraint_callback' => (
     predicate => 'has_type_constraint_callback',
 );
 
-has 'in_package' => (
+has 'from_namespace' => (
     is        => 'rw',
     isa       => ClassName,
-    predicate => 'has_search_packge'
+    predicate => 'has_from_namespace'
 );
 
 has 'ppi_doc' => (
@@ -490,8 +495,8 @@ sub _param_typed {
     ppi  => $tc,
     $self->has_type_constraint_callback
       ? (tc_callback => $self->type_constraint_callback)
-      : $self->has_search_packge
-      ? ( search_package => $self->in_package )
+      : $self->from_namespace
+      ? ( from_namespace => $self->from_namespace )
       : ()
   );
   $param->{type_constraints} = $tc;
@@ -961,7 +966,7 @@ B<Type:> Str (loaded on demand class name)
 Class that is used to turn the parsed type constraint into an actual
 L<Moose::Meta::TypeConstraint> object.
 
-=head2 in_package
+=head2 from_namespace
 
 B<Type:> ClassName
 
