@@ -32,3 +32,5 @@
 \.sw.?$
 \#$
 
+inc/Module/Install/JSONMETA.pm
+

@@ -3,7 +3,7 @@ Changelog for Parse::Method::Signatures
 1.003003 - 2009/03/16
   - Re-introduce remaining_input since TryCatch depends upon it
   - Add more and update docs
-  - Add 'in_package' option to streamline use with MooseX::Types
+  - Add 'from_namespace' option to streamline use with MooseX::Types
 
 1.003002 - 2009/03/04
   - Now *really* remove deps on Data::Dump. Not my day w.r.t. dists

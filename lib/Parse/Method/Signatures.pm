@@ -996,8 +996,8 @@ L<MooseX::Types> then you will want a callback similar to this:
          : $pms_tc->find_registered_constraint($name);
  }
 
-Note that the above example is better provided by providing the L</in_package>
-attribute.
+Note that the above example is better provided by providing the
+L</from_namespace> attribute.
 
 =head1 CAVEATS
 

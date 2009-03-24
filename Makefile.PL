@@ -33,7 +33,7 @@ resources(
     'homepage'   => 'http://github.com/ashb/parse-method-signatures/tree/master',
 );
 
-jsonmeta;
+jsonmeta();
 auto_provides;
 #auto_install;
 WriteAll;
