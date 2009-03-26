@@ -1,5 +1,10 @@
 Changelog for Parse::Method::Signatures
 
+  - Better error reporting of invalid TCs.
+  - Better error reporting of not yet defined MX::Types TCs
+  - We now skip leading whitespace at the start of the parse. Whitespce
+    everywhere else is already skipped
+
 1.003003 - 2009/03/16
   - Re-introduce remaining_input since TryCatch depends upon it
   - Add more and update docs
