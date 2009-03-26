@@ -92,6 +92,12 @@ sub BUILD {
             param_class
             type_constraint_class
         /;
+
+    my $ppi = $self->ppi;
+
+    # Skip leading whitespace
+    $self->consume_token
+      unless $ppi->significant;
 }
 
 sub create_param {
