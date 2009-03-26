@@ -1,5 +1,6 @@
 package Parse::Method::Signatures::TypeConstraint;
 
+use Carp qw/croak carp/;
 use Moose;
 use MooseX::Types::Util qw/has_available_type_export/;
 use MooseX::Types::Moose qw/Str HashRef CodeRef ClassName/;
@@ -40,7 +41,12 @@ sub find_registered_constraint {
 
     my $type;
     if ($self->has_from_namespace) {
+
       $type = has_available_type_export($self->from_namespace, $name);
+      croak "The type '$name' was found in " . $self->from_namespace . " " .
+            "but it hasn't yet been defined. Perhaps you need to move the " .
+            "definition into a type library or a BEGIN block.\n"
+        if $type && $type->isa('MooseX::Types::UndefinedType');
     }
 
     my $registry = Moose::Util::TypeConstraints->get_type_constraint_registry;
@@ -50,7 +56,16 @@ sub find_registered_constraint {
 
 sub _build_tc {
     my ($self) = @_;
-    return $self->_walk_data($self->ppi);
+    my $tc = $self->_walk_data($self->ppi);
+
+    # This makes the error appear from the right place
+    local $Carp::Internal{'Class::MOP::Method::Generated'} = 1
+      unless exists $Carp::Internal{'Class::MOP::Method::Generated'};
+
+    croak "'@{[$self->ppi]}' could not be parsed to a type constraint - maybe you need to "
+        . "pre-declare the type with class_type"
+      unless blessed $tc;
+    return $tc;
 }
 
 sub _walk_data {
@@ -66,7 +81,6 @@ sub _walk_data {
 
 sub _leaf {
     my ($self, $data) = @_;
-    #return if ref($data);
 
     sub { $self->_invoke_callback($data->content) };
 }
