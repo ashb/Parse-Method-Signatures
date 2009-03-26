@@ -1,5 +1,6 @@
 Changelog for Parse::Method::Signatures
 
+1.003004 - 2009/03/26
   - Better error reporting of invalid TCs.
   - Better error reporting of not yet defined MX::Types TCs
   - We now skip leading whitespace at the start of the parse. Whitespce
