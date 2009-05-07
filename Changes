@@ -1,5 +1,8 @@
 Changelog for Parse::Method::Signatures
 
+1.003005 - 2009/05/07
+  - Stop using json in META.yml.
+
 1.003004 - 2009/03/26
   - Better error reporting of invalid TCs.
   - Better error reporting of not yet defined MX::Types TCs
