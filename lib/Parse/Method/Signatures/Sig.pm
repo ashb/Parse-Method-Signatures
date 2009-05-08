@@ -147,10 +147,6 @@ Returns the Param with the specified name.
 
 Returns a string representation of this signature.
 
-=head1 AUTHOR
-
-Florian Ragwitz <rafl@debian.org>.
-
 =head1 LICENSE
 
 Licensed under the same terms as Perl itself.
