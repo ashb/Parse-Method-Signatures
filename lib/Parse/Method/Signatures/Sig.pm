@@ -106,3 +106,51 @@ sub to_string {
 __PACKAGE__->meta->make_immutable;
 
 1;
+
+__END__
+
+=head1 NAME
+
+Parse::Method::Signatures::Sig - Method Signature
+
+=head1 DESCRIPTION
+
+Represents the parsed method signature.
+
+=head1 ATTRIBUTES
+
+=head2 invocant
+
+=head2 named_params
+
+A ParamCollection representing the name parameters of this signature.
+
+=head2 positional_params
+
+A ParamCollection representing the positional parameters of this signature.
+
+=head1 METHODS
+
+=head2 has_named_params
+
+Predicate returning true if this signature has named parameters.
+
+=head2 has_positional_params
+
+Predicate returning true if this signature has positional parameters.
+
+=head2 named_param
+
+Returns the Param with the specified name.
+
+=head2 to_string
+
+Returns a string representation of this signature.
+
+=head1 AUTHOR
+
+Florian Ragwitz <rafl@debian.org>.
+
+=head1 LICENSE
+
+Licensed under the same terms as Perl itself.
