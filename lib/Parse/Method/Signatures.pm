@@ -15,7 +15,7 @@ use Parse::Method::Signatures::Types qw/
 use Carp qw/croak/;
 
 use namespace::clean -except => 'meta';
-our $VERSION = '1.003005';
+our $VERSION = '1.003006';
 our $ERROR_LEVEL = 0;
 our %LEXTABLE;
 our $DEBUG = $ENV{PMS_DEBUG} || 0;
@@ -1053,4 +1053,6 @@ to use this module.
 =head1 LICENSE
 
 Licensed under the same terms as Perl itself.
+
+This distribution copyright 2008-2009, Ash Berlin <ash@cpan.org>
 

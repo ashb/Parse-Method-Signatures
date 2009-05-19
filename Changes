@@ -1,5 +1,8 @@
 Changelog for Parse::Method::Signatures
 
+1.003006 - 2009/05/19
+  - Copyright notice to make Debian packagers happy
+
 1.003005 - 2009/05/07
   - Stop using json in META.yml.
 
