@@ -150,3 +150,5 @@ Returns a string representation of this signature.
 =head1 LICENSE
 
 Licensed under the same terms as Perl itself.
+
+=cut
