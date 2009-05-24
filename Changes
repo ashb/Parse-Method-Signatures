@@ -1,5 +1,8 @@
 Changelog for Parse::Method::Signatures
 
+1.003007 - 2009/05/24
+  - Document Parse::Method::Signatures::Sig (Cory Watson)
+
 1.003006 - 2009/05/19
   - Copyright notice to make Debian packagers happy
 
