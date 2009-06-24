@@ -178,5 +178,6 @@ sub test_param {
   my $p = { %$param };
   delete $p->{_trait_namespace};
   delete $p->{_params};
+  delete $p->{__MOP__};
   eq_or_diff($p, $wanted, $msg);
 }
