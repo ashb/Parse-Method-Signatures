@@ -1,5 +1,8 @@
 Changelog for Parse::Method::Signatures
 
+1.003008 - 2009/06/25
+  - Fix ppi.t for the __MOP__ object key (Jesse Luehrs).
+
 1.003007 - 2009/05/24
   - Document Parse::Method::Signatures::Sig (Cory Watson)
 
