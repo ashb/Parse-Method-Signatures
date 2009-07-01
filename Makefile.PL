@@ -1,4 +1,4 @@
-use inc::Module::Install 0.79;
+use inc::Module::Install 0.91;
 
 use strict;
 use warnings;
@@ -8,7 +8,7 @@ all_from 'lib/Parse/Method/Signatures.pm';
 
 requires 'List::MoreUtils';
 requires 'Moose';
-requires 'MooseX::Traits';
+requires 'MooseX::Traits' => '0.06';
 requires 'MooseX::Types' => '0.10';
 requires 'MooseX::Types::Moose';
 requires 'MooseX::Types::Structured';
@@ -34,5 +34,5 @@ resources(
 );
 
 auto_provides;
-#auto_install;
+auto_install;
 WriteAll;
