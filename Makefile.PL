@@ -29,8 +29,8 @@ testcover: pm_to_blib
 EOM
 
 resources(
-    'repository' => 'git://github.com/ashb/parse-method-signatures.git',
-    'homepage'   => 'http://github.com/ashb/parse-method-signatures/tree/master',
+    'repository' => 'git://github.com/ashb/Parse-Method-Signatures.git',
+    'homepage'   => 'http://github.com/ashb/Parse-Method-Signatures/tree/master',
 );
 
 auto_provides;
