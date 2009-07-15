@@ -155,11 +155,14 @@ sub parse {
 sub _replace_regexps {
   my ($self, $doc) = @_;
 
+  REGEXP:
   foreach my $node ( @{ $doc->find('Token::Regexp') || [] } ) {
     my $str = $node->content;
 
+    next REGEXP unless defined $node->{operator};
+
     # Rather annoyingly, there are *no* methods on Token::Regexp;
-    my ($word, $rest) = $str =~ /^(@{[$node->{operator}]})(.*)$/s;
+    my ($word, $rest) = $str =~ /^(\Q@{[$node->{operator}]}\E)(.*)$/s;
 
     my $subdoc = PPI::Document->new(\$rest);
     my @to_add = reverse map { $_->remove } $subdoc->children;

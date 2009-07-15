@@ -1,5 +1,8 @@
 Changelog for Parse::Method::Signatures
 
+  - Fix 'Use of uninitialized value' when using regexps in signatures
+  - Depend on MooseX::Traits 0.06 to remove warning about 'bare has' attribute
+
 1.003008 - 2009/06/25
   - Fix ppi.t for the __MOP__ object key (Jesse Luehrs).
 

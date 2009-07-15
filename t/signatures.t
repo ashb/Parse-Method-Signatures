@@ -141,7 +141,15 @@ my @invalid = (
     ['($x = $a[0])',            'invalid label contents'],
 );
 
-plan tests => scalar @sigs * 3 + scalar @alternative + scalar @invalid;
+my @no_warn = (
+    ['($x where { $_ =~ /foo/ })', 'Regexp without operator' ]
+);
+
+plan tests => scalar @sigs * 3 
+            + scalar @alternative 
+            + scalar @invalid
+            + scalar @no_warn
+;
 
 test_sigs(sub {
     my ($input, $msg, $todo) = @_;
@@ -168,6 +176,8 @@ test_sigs(sub {
     dies_ok { Parse::Method::Signatures->signature($sig) } $msg;
 }, @invalid);
 
+test_no_warn(@no_warn);
+
 sub test_sigs {
     my ($test, @sigs) = @_;
 
@@ -176,6 +186,23 @@ sub test_sigs {
         TODO: {
             local $TODO = $todo if $todo;
             $test->($sig, $msg, $todo);
+        }
+    }
+}
+
+sub test_no_warn {
+    my (@sigs) = @_;
+
+    my $warnings = "";
+    local $SIG{__WARN__} = sub { $warnings .= "@_"; };
+
+    for my $row (@sigs) {
+        my ($sig, $msg, $todo) = @{ $row };
+        TODO: {
+            $warnings = "";
+            local $TODO = $todo if $todo;
+            Parse::Method::Signatures->signature($sig);
+            is("", $warnings, $msg || "'$sig' generated no warnings");
         }
     }
 }

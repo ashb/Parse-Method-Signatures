@@ -34,5 +34,5 @@ resources(
 );
 
 auto_provides;
-auto_install;
+auto_install();
 WriteAll;
