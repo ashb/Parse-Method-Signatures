@@ -1,5 +1,8 @@
 Changelog for Parse::Method::Signatures
 
+1.003010 - 2009/07/30
+  - Make it work with upcomming PPI 1.204
+
 1.003009 - 2009/07/16
   - Fix 'Use of uninitialized value' when using regexps in signatures
   - Depend on MooseX::Traits 0.06 to remove warning about 'bare has' attribute
