@@ -706,8 +706,9 @@ sub bracketed {
     $self->error($self->ppi)
       if $self->ppi != $ppi->finish;
 
-    # Hmm we seem to have to call a private method. sucky
-    $list->_set_finish($self->consume_token->clone);
+    # There is no public way to do this as of PPI 1.204_06. I'll add one to the
+    # next release, 1.205 (or so)
+    $list->{finish} = $self->consume_token->clone;
   } else {
     # Just clone the entire [] or {}
     $ret = $ppi->clone;
