@@ -41,12 +41,22 @@ sub find_registered_constraint {
 
     my $type;
     if ($self->has_from_namespace) {
+        my $pkg = $self->from_namespace;
 
-      $type = has_available_type_export($self->from_namespace, $name);
-      croak "The type '$name' was found in " . $self->from_namespace . " " .
-            "but it hasn't yet been defined. Perhaps you need to move the " .
-            "definition into a type library or a BEGIN block.\n"
-        if $type && $type->isa('MooseX::Types::UndefinedType');
+        if ($type = has_available_type_export($pkg, $name)) {
+            croak "The type '$name' was found in $pkg " .
+                  "but it hasn't yet been defined. Perhaps you need to move the " .
+                  "definition into a type library or a BEGIN block.\n"
+                if $type && $type->isa('MooseX::Types::UndefinedType');
+        }
+        else {
+            my $meta  = Class::MOP::class_of($pkg) || Class::MOP::Class->initialize($pkg);
+            my $func  = $meta->get_package_symbol('&' . $name);
+            my $proto = prototype $func if $func;
+
+            $name = $func->()
+                if $func && defined $proto && !length $proto;
+        }
     }
 
     my $registry = Moose::Util::TypeConstraints->get_type_constraint_registry;
