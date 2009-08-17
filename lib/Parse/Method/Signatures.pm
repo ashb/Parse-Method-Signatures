@@ -1051,9 +1051,6 @@ all modules known to the author.)
 
 L<http://github.com/ashb/trycatch/tree>.
 
-L<MooseX::Method::Signatures> and L<MooseX::Declare> which are due to be ported
-to use this module.
-
 =head1 LICENSE
 
 Licensed under the same terms as Perl itself.
