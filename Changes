@@ -1,5 +1,8 @@
 Changelog for Parse::Method::Signatures
 
+1.003011 - 2009/08/18
+  - Resolve aliased type names when a namespace to look aliases up is given.
+
 1.003010 - 2009/07/30
   - Make it work with upcomming PPI 1.204
 
