@@ -1,5 +1,8 @@
 Changelog for Parse::Method::Signatures
 
+  - Pass from_namespace to type constraint class even if there is a callback
+    provided. (This lets the callback be wrapped/extended better.)
+
 1.003011 - 2009/08/18
   - Resolve aliased type names when a namespace to look aliases up is given.
 

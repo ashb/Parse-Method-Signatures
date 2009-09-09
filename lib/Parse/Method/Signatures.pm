@@ -502,11 +502,14 @@ sub _param_typed {
 
   $tc = $self->type_constraint_class->new(
     ppi  => $tc,
-    $self->has_type_constraint_callback
+    ( $self->has_type_constraint_callback
       ? (tc_callback => $self->type_constraint_callback)
-      : $self->from_namespace
+      : ()
+    ),
+    ( $self->has_from_namespace
       ? ( from_namespace => $self->from_namespace )
       : ()
+    ),
   );
   $param->{type_constraints} = $tc;
 
@@ -983,9 +986,9 @@ B<Type:> ClassName
 Let this module know which package it is parsing signatures form. This is
 entirely optional, and the only effect is has is on parsing type constraints.
 
-If this attribute is set (and C<type_constraint_callback> is not) it is passed
-to L</type_constraint_class> which can use it to introspect the package
-(commmonly for L<MooseX::Types> exported types). See
+If this attribute is set it is passed to L</type_constraint_class> which can
+use it to introspect the package (commmonly for L<MooseX::Types> exported
+types). See
 L<Parse::Method::Signature::TypeConstraints/find_registered_constraint> for
 more details.
 
