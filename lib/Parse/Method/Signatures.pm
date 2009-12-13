@@ -1044,7 +1044,7 @@ Ash Berlin <ash@cpan.org>.
 
 Thanks to Florian Ragwitz <rafl@debian.org>.
 
-Many thanks to Piers Crawley to showing me the way to refactor my spaghetti
+Many thanks to Piers Cawley to showing me the way to refactor my spaghetti
 code into something more manageable.
 
 =head1 SEE ALSO
