@@ -1,5 +1,7 @@
 Changelog for Parse::Method::Signatures
 
+  - Add version to List::MoreUtils as we need part() (Leo Lapworth)
+
 1.003012 - 2009/12/16
   - Pass from_namespace to type constraint class even if there is a callback
     provided. (This lets the callback be wrapped/extended better.)

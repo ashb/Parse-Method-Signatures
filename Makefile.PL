@@ -6,7 +6,7 @@ use warnings;
 name 'Parse-Method-Signatures';
 all_from 'lib/Parse/Method/Signatures.pm';
 
-requires 'List::MoreUtils';
+requires 'List::MoreUtils' => '0.20';
 requires 'Moose';
 requires 'MooseX::Traits' => '0.06';
 requires 'MooseX::Types' => '0.17';
