@@ -1,5 +1,6 @@
 Changelog for Parse::Method::Signatures
 
+1.003013 - 2010/01/08
   - Add version to List::MoreUtils as we need part() (Leo Lapworth)
 
 1.003012 - 2009/12/16
