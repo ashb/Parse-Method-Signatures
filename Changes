@@ -1,6 +1,6 @@
 Changelog for Parse::Method::Signatures
 
-1.003014
+1.003014 - 2011/09/12
   - Don't look in the stash for type names containing :: (Jesse Luehrs)
 
 1.003013 - 2010/01/08
