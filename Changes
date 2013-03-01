@@ -1,4 +1,5 @@
 Changelog for Parse::Method::Signatures
+  - Don't ship MYMETA files
 
 1.003014 - 2011/09/12
   - Don't look in the stash for type names containing :: (Jesse Luehrs)

@@ -11,6 +11,7 @@
 \bpm_to_blib$
 \bblibdirs$
 ^MANIFEST\.SKIP$
+^MYMETA\.
 
 # Avoid temp and backup files.
 ~$
