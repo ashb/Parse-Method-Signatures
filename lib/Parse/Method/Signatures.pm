@@ -15,7 +15,7 @@ use Parse::Method::Signatures::Types qw/
 use Carp qw/croak/;
 
 use namespace::clean -except => 'meta';
-our $VERSION = '1.003014';
+our $VERSION = '1.003015';
 our $ERROR_LEVEL = 0;
 our %LEXTABLE;
 our $DEBUG = $ENV{PMS_DEBUG} || 0;
