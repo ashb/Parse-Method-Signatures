@@ -145,7 +145,7 @@ sub parse {
   # (Foo Bar :$x) yields a label of "Bar :"
   $self->_replace_labels($doc);
 
-  # This one is actually a bug in PPI, rather than just an odity
+  # This one is actually a bug in PPI, rather than just an oddity
   # (Str $x = 0xfF) parses as "Oxf" and a word of "F"
   $self->_fixup_hex($doc);
 
@@ -248,7 +248,7 @@ sub signature {
   my $param = $self->param;
 
   if ($param && $self->ppi->content eq ':') {
-    # That param was actualy the invocant
+    # That param was actually the invocant
     $args->{invocant} = $param;
     croak "Invocant cannot be named"
       if NamedParam->check($param);
@@ -841,7 +841,7 @@ __PACKAGE__->meta->make_immutable;
   use base 'PPI::Statement::Expression';
   use Moose;
 
-  # $self->children stores everything so PPI cna track parents
+  # $self->children stores everything so PPI can track parents
   # params just contains the keywords (not commas) inside the []
   has type => ( is => 'ro');
   has params => ( 
@@ -987,7 +987,7 @@ Let this module know which package it is parsing signatures form. This is
 entirely optional, and the only effect is has is on parsing type constraints.
 
 If this attribute is set it is passed to L</type_constraint_class> which can
-use it to introspect the package (commmonly for L<MooseX::Types> exported
+use it to introspect the package (commonly for L<MooseX::Types> exported
 types). See
 L<Parse::Method::Signature::TypeConstraints/find_registered_constraint> for
 more details.
@@ -1032,7 +1032,7 @@ the following example:
 In this case the C<$]> is treated as one of perl's magic variables
 (specifically, the patch level of the Perl interpreter) rather than a C<$>
 followed by a C<]> as was almost certainly intended. The work around for this
-is simple: introduce a space between the charcters:
+is simple: introduce a space between the characters:
 
  method foo (ArrayRef [ $, $ ], $some_value_we_care_about) {
 
