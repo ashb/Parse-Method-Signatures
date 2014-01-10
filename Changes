@@ -1,4 +1,7 @@
 Changelog for Parse::Method::Signatures
+
+  - Use Class::Load instead of Class::MOP::load_class() (Zefram)
+
 1.003015 - 2013/03/01
   - Don't ship MYMETA files
 

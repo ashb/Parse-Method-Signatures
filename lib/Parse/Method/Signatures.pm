@@ -5,6 +5,7 @@ use MooseX::Types::Moose qw/
   ArrayRef HashRef ScalarRef CodeRef Int Str ClassName
 /;
 
+use Class::Load qw(load_class);
 use PPI;
 use Moose::Util::TypeConstraints;
 use Parse::Method::Signatures::ParamCollection;
@@ -86,7 +87,7 @@ has 'ppi' => (
 sub BUILD {
     my ($self) = @_;
 
-    Class::MOP::load_class($_)
+    load_class($_)
         for map { $self->$_ } qw/
             signature_class
             param_class
