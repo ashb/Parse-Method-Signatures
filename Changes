@@ -1,5 +1,6 @@
 Changelog for Parse::Method::Signatures
 
+1.003016 - 2014/01/12
   - Use Class::Load instead of Class::MOP::load_class() (Zefram)
 
 1.003015 - 2013/03/01
