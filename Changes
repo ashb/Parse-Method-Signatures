@@ -1,5 +1,8 @@
 Changelog for Parse::Method::Signatures
 
+1.003017 - 2016/05/31
+ - Fix use of unescaped "{" in QR ( RT #114385 )
+
 1.003016 - 2014/01/12
   - Use Class::Load instead of Class::MOP::load_class() (Zefram)
 
