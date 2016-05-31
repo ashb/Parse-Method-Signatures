@@ -120,7 +120,7 @@ throws_ok {
 
 throws_ok {
   Parse::Method::Signatures->new(':foo( {$x, :@y])')->param(),
-} qr/^Runaway '{}' in unpacked parameter near '{\$x, :\@y' at /,
+} qr/^Runaway '\{\}' in unpacked parameter near '\{\$x, :\@y' at /,
   q/Runaway '{}' in unpacked parameter near '{$x, :@y' at /;
 
 test_param(
