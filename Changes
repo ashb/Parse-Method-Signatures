@@ -1,5 +1,8 @@
 Changelog for Parse::Method::Signatures
 
+1.003018_01 - 2017-04-02
+ - Avoid needing '.' in @INC for Makefile.PL ( RT #120830 )
+
 1.003017 - 2016/05/31
  - Fix use of unescaped "{" in QR ( RT #114385 )
 

@@ -1,4 +1,9 @@
-use inc::Module::Install 0.91;
+use lib 'inc';
+use Module::Install 0.91 ();
+BEGIN {
+  $INC{'inc/Module/Install.pm'} = $INC{'Module/Install.pm'};
+  inc::Module::Install->import
+}
 
 use strict;
 use warnings;
