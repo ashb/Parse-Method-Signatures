@@ -1,6 +1,9 @@
 Changelog for Parse::Method::Signatures
 
-1.003018_01 - 2017-04-02
+1.003019 - 2017/04/10
+ - Stable release of fixes in 1.003018_01
+
+1.003018_01 - 2017/04/02
  - Avoid needing '.' in @INC for Makefile.PL ( RT #120830 )
 
 1.003017 - 2016/05/31

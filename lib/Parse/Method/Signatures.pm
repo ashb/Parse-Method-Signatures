@@ -16,7 +16,7 @@ use Parse::Method::Signatures::Types qw/
 use Carp qw/croak/;
 
 use namespace::clean -except => 'meta';
-our $VERSION = '1.003018_01';
+our $VERSION = '1.003019';
 $VERSION = eval $VERSION;
 our $ERROR_LEVEL = 0;
 our %LEXTABLE;
